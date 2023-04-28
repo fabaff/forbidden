@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "forbidden"
+version = "9.5"
+authors = [{ name = "Ivan Sincek" }]
+description = "Bypass 4xx HTTP response status codes and more."
+readme = "README.md"
+requires-python = ">=3.6"
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"License :: OSI Approved :: MIT License",
+	"Operating System :: OS Independent"
+]
+dependencies = ["datetime>=5.0", "requests>=2.10.0", "pycurl>=7.45.1", "termcolor>=1.1.0"]
+
+[project.urls]
+"Homepage" = "https://github.com/ivan-sincek/forbidden"
+
+[project.scripts]
+forbidden = "forbidden.forbidden:main"
+stresser = "stresser.stresser:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["user_agents.txt"]
