@@ -79,6 +79,8 @@ Made for educational purposes. I hope it will help!
 
 ## How to Install
 
+On Windows OS, download and install PycURL from [www.lfd.uci.edu/~gohlke](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pycurl).
+
 ```bash
 apt-get -y install libcurl4-gnutls-dev librtmp-dev
 
@@ -88,6 +90,8 @@ pip3 install --upgrade forbidden
 ```
 
 ## How to Build and Install Manually
+
+On Windows OS, download and install PycURL from [www.lfd.uci.edu/~gohlke](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pycurl).
 
 Run the following commands:
 
@@ -100,7 +104,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-9.5-py3-none-any.whl
+python3 -m pip install dist/forbidden-9.6-py3-none-any.whl
 ```
 
 ## Automation
@@ -337,8 +341,8 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
          "Host: 127.0.0.1"
       ],
       "body":null,
-      "agent":"Forbidden/9.5",
-      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1' -H 'User-Agent: Forbidden/9.5' -X 'GET' 'https://example.com:443/admin'",
+      "agent":"Forbidden/9.6",
+      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1' -H 'User-Agent: Forbidden/9.6' -X 'GET' 'https://example.com:443/admin'",
       "code":200,
       "length":255408
    },
@@ -350,8 +354,8 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
          "Host: 127.0.0.1:443"
       ],
       "body":null,
-      "agent":"Forbidden/9.5",
-      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1:443' -H 'User-Agent: Forbidden/9.5' -X 'GET' 'https://example.com:443/admin'",
+      "agent":"Forbidden/9.6",
+      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1:443' -H 'User-Agent: Forbidden/9.6' -X 'GET' 'https://example.com:443/admin'",
       "code":200,
       "length":255408
    }
@@ -361,7 +365,7 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
 ## Usage
 
 ```fundamental
-Forbidden v9.5 ( github.com/ivan-sincek/forbidden )
+Forbidden v9.6 ( github.com/ivan-sincek/forbidden )
 
 Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]
 Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]
@@ -412,7 +416,7 @@ THREADS
     -th <threads> - 200 | etc.
 AGENT
     User agent to use
-    Default: Forbidden/9.5
+    Default: Forbidden/9.6
     -a <agent> - curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
@@ -423,7 +427,7 @@ OUT
 ```
 
 ```fundamental
-Stresser v4.5 ( github.com/ivan-sincek/forbidden )
+Stresser v4.6 ( github.com/ivan-sincek/forbidden )
 
 Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
 Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
@@ -458,7 +462,7 @@ LENGTHS
     -l <lengths> - 12 | base | etc.
 AGENT
     User agent to use
-    Default: Stresser/4.5
+    Default: Stresser/4.6
     -a <agent> - curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use

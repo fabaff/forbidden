@@ -14,18 +14,21 @@ import io
 import requests
 import pycurl
 import termcolor
+import colorama
 import json
 
 start = datetime.datetime.now()
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
+colorama.init(autoreset = True)
+
 # -------------------------- INFO --------------------------
 
 def basic():
 	global proceed
 	proceed = False
-	print("Forbidden v9.5 ( github.com/ivan-sincek/forbidden )")
+	print("Forbidden v9.6 ( github.com/ivan-sincek/forbidden )")
 	print("")
 	print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]")
 	print("Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]")
@@ -79,7 +82,7 @@ def advanced():
 	print("    -th <threads> - 200 | etc.")
 	print("AGENT")
 	print("    User agent to use")
-	print("    Default: Forbidden/9.5")
+	print("    Default: Forbidden/9.6")
 	print("    -a <agent> - curl/3.30.1 | random[-all] | etc.")
 	print("PROXY")
 	print("    Web proxy to use")
@@ -1117,7 +1120,7 @@ def remove(array, keys):
 	return array
 
 def output(record, color):
-	print(termcolor.colored(jdump(record), color))
+	termcolor.cprint(jdump(record), color)
 	return record
 
 def create_table(results):
@@ -1133,7 +1136,7 @@ def table_horizontal_border():
 
 def table_row(code, count, color = None):
 	text = ("| {0:<6} | {1:<9} |").format(code, count)
-	print(termcolor.colored(text, color) if color else text)
+	termcolor.cprint(text, color) if color else print(text)
 
 def table_header():
 	table_row("Code", "Count")
@@ -1221,7 +1224,7 @@ def main():
 	if proceed:
 		print("##########################################################################")
 		print("#                                                                        #")
-		print("#                             Forbidden v9.5                             #")
+		print("#                             Forbidden v9.6                             #")
 		print("#                                  by Ivan Sincek                        #")
 		print("#                                                                        #")
 		print("# Bypass 4xx HTTP response status codes and more.                        #")
@@ -1237,7 +1240,7 @@ def main():
 		if not args["threads"]:
 			args["threads"] = 5
 		if not args["agent"]:
-			args["agent"] = "Forbidden/9.5"
+			args["agent"] = "Forbidden/9.6"
 		# --------------------
 		url = parse_url(args["url"])
 		ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}

@@ -12,16 +12,19 @@ import subprocess
 import io
 import pycurl
 import termcolor
+import colorama
 import json
 
 start = datetime.datetime.now()
+
+colorama.init(autoreset = True)
 
 # -------------------------- INFO --------------------------
 
 def basic():
 	global proceed
 	proceed = False
-	print("Stresser v4.5 ( github.com/ivan-sincek/forbidden )")
+	print("Stresser v4.6 ( github.com/ivan-sincek/forbidden )")
 	print("")
 	print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 	print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -59,7 +62,7 @@ def advanced():
 	print("    -l <lengths> - 12 | base | etc.")
 	print("AGENT")
 	print("    User agent to use")
-	print("    Default: Stresser/4.5")
+	print("    Default: Stresser/4.6")
 	print("    -a <agent> - curl/3.30.1 | random[-all] | etc.")
 	print("PROXY")
 	print("    Web proxy to use")
@@ -420,7 +423,7 @@ def remove(array, keys):
 	return array
 
 def output(record, color):
-	print(termcolor.colored(jdump(record), color))
+	termcolor.cprint(jdump(record), color)
 	return record
 
 def create_table(results):
@@ -436,7 +439,7 @@ def table_horizontal_border():
 
 def table_row(code, count, color = None):
 	text = ("| {0:<6} | {1:<9} |").format(code, count)
-	print(termcolor.colored(text, color) if color else text)
+	termcolor.cprint(text, color) if color else print(text)
 
 def table_header():
 	table_row("Code", "Count")
@@ -526,7 +529,7 @@ def main():
 		os.chdir(args["directory"])
 		print("###########################################################$$$$############")
 		print("#                                                                         #")
-		print("#                              Stresser v4.5                              #")
+		print("#                              Stresser v4.6                              #")
 		print("#                                  by Ivan Sincek                         #")
 		print("#                                                                         #")
 		print("# Bypass 4xx HTTP response status codes with stress testing.              #")
@@ -536,7 +539,7 @@ def main():
 		print("###########################################################################")
 		# --------------------
 		if not args["agent"]:
-			args["agent"] = "Stresser/4.5"
+			args["agent"] = "Stresser/4.6"
 		# --------------------
 		url = parse_url(args["url"])
 		ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}

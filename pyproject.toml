@@ -4,17 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "forbidden"
-version = "9.5"
+version = "9.6"
 authors = [{ name = "Ivan Sincek" }]
 description = "Bypass 4xx HTTP response status codes and more."
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.7"
 classifiers = [
 	"Programming Language :: Python :: 3",
 	"License :: OSI Approved :: MIT License",
 	"Operating System :: OS Independent"
 ]
-dependencies = ["datetime>=5.0", "requests>=2.10.0", "pycurl>=7.45.1", "termcolor>=1.1.0"]
+dependencies = ["datetime>=5.0", "requests>=2.10.0", "pycurl>=7.45.1", "termcolor>=1.1.0", "colorama>=0.4.6"]
 
 [project.urls]
 "Homepage" = "https://github.com/ivan-sincek/forbidden"
