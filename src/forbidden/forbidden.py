@@ -12,6 +12,7 @@ import concurrent.futures
 import subprocess
 import io
 import requests
+import time
 import pycurl
 import termcolor
 import colorama
@@ -28,7 +29,7 @@ colorama.init(autoreset = True)
 def basic():
 	global proceed
 	proceed = False
-	print("Forbidden v9.6 ( github.com/ivan-sincek/forbidden )")
+	print("Forbidden v9.7 ( github.com/ivan-sincek/forbidden )")
 	print("")
 	print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]")
 	print("Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]")
@@ -65,8 +66,7 @@ def advanced():
 	print("    Default: github.com")
 	print("    -e <evil> - xyz.interact.sh | xyz.burpcollaborator.net | etc.")
 	print("IGNORE")
-	print("    Filter out 200 OK false positive results by RegEx")
-	print("    Spacing will be stripped")
+	print("    Filter out 200 OK false positive results with a regual expression")
 	print("    -i <ignore> - Forbidden | \"Access Denied\" | etc.")
 	print("LENGTHS")
 	print("    Filter out 200 OK false positive results by content lengths")
@@ -77,12 +77,16 @@ def advanced():
 	print("THREADS")
 	print("    Number of parallel threads to run")
 	print("    More threads make it quicker but can give worse results")
-	print("    Heavily depends on network bandwidth and server capacity")
+	print("    Depends heavily on network bandwidth and server capacity")
 	print("    Default: 5")
 	print("    -th <threads> - 200 | etc.")
+	print("SLEEP")
+	print("    Sleep while queuing each request")
+	print("    Intended for a single thread use")
+	print("    -s <sleep> - 5 | etc.")
 	print("AGENT")
 	print("    User agent to use")
-	print("    Default: Forbidden/9.6")
+	print("    Default: Forbidden/9.7")
 	print("    -a <agent> - curl/3.30.1 | random[-all] | etc.")
 	print("PROXY")
 	print("    Web proxy to use")
@@ -90,6 +94,9 @@ def advanced():
 	print("OUT")
 	print("    Output file")
 	print("    -o <out> - results.json | etc.")
+	print("DEBUG")
+	print("    Debug output")
+	print("    -dbg <debug> - yes")
 
 # ------------------- MISCELENIOUS BEGIN -------------------
 
@@ -375,7 +382,7 @@ def error(msg, help = False):
 	if help:
 		print("Use -h for basic and --help for advanced info")
 
-args = {"url": None, "tests": None, "force": None, "values": None, "path": None, "evil": None, "ignore": None, "lengths": None, "threads": None, "agent": None, "proxy": None, "out": None}
+args = {"url": None, "tests": None, "force": None, "values": None, "path": None, "evil": None, "ignore": None, "lengths": None, "threads": None, "sleep": None, "agent": None, "proxy": None, "out": None, "debug": None}
 
 # TO DO: Better URL validation. Validate "evil" and "proxy" URLs.
 def validate(key, value):
@@ -428,6 +435,14 @@ def validate(key, value):
 				args["threads"] = int(args["threads"])
 				if args["threads"] < 1:
 					error("Number of parallel threads to run must be greater than zero")
+		elif key == "-s" and args["sleep"] is None:
+			args["sleep"] = value
+			if not args["sleep"].isdigit():
+				error("Sleep must be numeric")
+			else:
+				args["sleep"] = int(args["sleep"])
+				if args["sleep"] < 1:
+					error("Sleep must be greater than zero")
 		elif key == "-a" and args["agent"] is None:
 			args["agent"] = value
 			if args["agent"].lower() in ["random", "random-all"]:
@@ -439,6 +454,10 @@ def validate(key, value):
 			args["proxy"] = value
 		elif key == "-o" and args["out"] is None:
 			args["out"] = value
+		elif key == "-dbg" and args["debug"] is None:
+			args["debug"] = value.lower()
+			if args["debug"] != "yes":
+				error("Specify 'yes' to enable debug output")
 
 def check(argc, args):
 	count = 0
@@ -1042,7 +1061,9 @@ def get_timestamp(text):
 def progress(count, total):
 	print(("Progress: {0}/{1} | {2:.2f}%").format(count, total, (count / total) * 100), end = "\n" if count == total else "\r")
 
-def send_request(record):
+def send_request(record, sleep = None, debug = None):
+	if sleep:
+		time.sleep(sleep)
 	encoding = "UTF-8"
 	if record["body"]:
 		record["body"].encode(encoding)
@@ -1069,15 +1090,18 @@ def send_request(record):
 		record["length"] = len(response.content)
 		if record["ignore"] and (record["ignore"]["text"] and re.search(record["ignore"]["text"], response.content.decode("ISO-8859-1"), re.MULTILINE | re.IGNORECASE) or record["ignore"]["lengths"] and any(record["length"] == length for length in record["ignore"]["lengths"])):
 			record["code"] = 0
-	except (requests.packages.urllib3.exceptions.LocationParseError, requests.exceptions.RequestException):
-		pass
+	except (requests.packages.urllib3.exceptions.LocationParseError, requests.exceptions.RequestException) as ex:
+		if debug:
+			print_error(("{0}\n{1}").format(ex, record["command"]))
 	finally:
 		if response is not None:
 			response.close()
 		session.close()
 	return record
 
-def send_curl(record):
+def send_curl(record, sleep = None, debug = None):
+	if sleep:
+		time.sleep(sleep)
 	encoding = "UTF-8"
 	response = io.BytesIO()
 	curl = pycurl.Curl()
@@ -1106,8 +1130,9 @@ def send_curl(record):
 		record["length"] = int(curl.getinfo(pycurl.SIZE_DOWNLOAD))
 		if record["ignore"] and (record["ignore"]["text"] and re.search(record["ignore"]["text"], response.getvalue().decode("ISO-8859-1"), re.MULTILINE | re.IGNORECASE) or record["ignore"]["lengths"] and any(record["length"] == length for length in record["ignore"]["lengths"])):
 			record["code"] = 0
-	except pycurl.error:
-		pass
+	except pycurl.error as ex:
+		if debug:
+			print_error(("{0}\n{1}").format(ex, record["command"]))
 	finally:
 		response.close()
 		curl.close()
@@ -1186,7 +1211,7 @@ def parse_results(results):
 	# --------------------
 	return tmp
 
-def bypass(collection, threads = 10):
+def bypass(collection, threads = 10, sleep = None, debug = None):
 	results = []
 	count = 0
 	total = len(collection)
@@ -1194,7 +1219,9 @@ def bypass(collection, threads = 10):
 	get_timestamp("Running tests...")
 	progress(count, total)
 	with concurrent.futures.ThreadPoolExecutor(max_workers = threads) as executor:
-		subprocesses = {executor.submit(send_curl if record["curl"] else send_request, record): record for record in collection}
+		subprocesses = []
+		for record in collection:
+			subprocesses.append(executor.submit(send_curl if record["curl"] else send_request, record, sleep, debug))
 		for subprocess in concurrent.futures.as_completed(subprocesses):
 			results.append(subprocess.result())
 			count += 1
@@ -1217,14 +1244,14 @@ def main():
 		for i in range(1, argc, 2):
 			validate(sys.argv[i], sys.argv[i + 1])
 		if args["url"] is None or args["tests"] is None or not check(argc, args):
-			error("Missing a mandatory option (-u, -t) and/or optional (-f, -v, -p, -e, -i, -l, -th, -a, -x, -o)", True)
+			error("Missing a mandatory option (-u, -t) and/or optional (-f, -v, -p, -e, -i, -l, -th, -s, -a, -x, -o, -dbg)", True)
 	else:
 		error("Incorrect usage", True)
 
 	if proceed:
 		print("##########################################################################")
 		print("#                                                                        #")
-		print("#                             Forbidden v9.6                             #")
+		print("#                             Forbidden v9.7                             #")
 		print("#                                  by Ivan Sincek                        #")
 		print("#                                                                        #")
 		print("# Bypass 4xx HTTP response status codes and more.                        #")
@@ -1240,7 +1267,7 @@ def main():
 		if not args["threads"]:
 			args["threads"] = 5
 		if not args["agent"]:
-			args["agent"] = "Forbidden/9.6"
+			args["agent"] = "Forbidden/9.7"
 		# --------------------
 		url = parse_url(args["url"])
 		ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}
@@ -1270,7 +1297,7 @@ def main():
 		if not collection:
 			print("No test records were created")
 		else:
-			results = parse_results(bypass(filter(get_commands(collection)), args["threads"]))
+			results = parse_results(bypass(filter(get_commands(collection)), args["threads"], args["sleep"], args["debug"]))
 			if not results:
 				print("No result matched the validation criteria")
 			else:
