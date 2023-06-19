@@ -378,7 +378,7 @@ URL
     -u <url> - https://example.com/admin | etc.
 TESTS
     Tests to run
-    Use comma separated values
+    Use a comma-separated values
     -t <tests> - methods | [method|scheme|port]-overrides | headers | paths | encodings | auths | redirects | parsers | all
 FORCE
     Force an HTTP method for nonspecific test cases
@@ -399,13 +399,14 @@ EVIL
     Default: github.com
     -e <evil> - xyz.interact.sh | xyz.burpcollaborator.net | etc.
 IGNORE
-    Filter out 200 OK false positive results with a regual expression
+    Filter out 200 OK false positive results by RegEx
+    Spacing will be stripped
     -i <ignore> - Forbidden | "Access Denied" | etc.
 LENGTHS
     Filter out 200 OK false positive results by content lengths
-    Specify 'base' to ignore content length of base HTTP response
-    Specify 'path' to ignore content length of accessible URL response
-    Use comma separated values
+    Specify 'base' to ignore the content length of the base HTTP response
+    Specify 'path' to ignore the content length of the accessible URL response
+    Use a comma-separated value
     -l <lengths> - 12 | base | path | etc.
 THREADS
     Number of parallel threads to run
@@ -439,7 +440,7 @@ Usage:   stresser -u url                        -dir directory -r repeat -th thr
 Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
 
 DESCRIPTION
-    Bypass 4xx HTTP response status codes with stress testing
+    Bypass 4xx HTTP response status codes with a stress testing
 URL
     Inaccessible or forbidden URL
     Parameters and fragments are ignored
@@ -463,8 +464,8 @@ IGNORE
     -i <ignore> - Forbidden | "Access Denied" | etc.
 LENGTHS
     Filter out 200 OK false positive results by content lengths
-    Specify 'base' to ignore content length of base HTTP response
-    Use comma separated values
+    Specify 'base' to ignore the content length of the base HTTP response
+    Use a comma-separated value
     -l <lengths> - 12 | base | etc.
 AGENT
     User agent to use
