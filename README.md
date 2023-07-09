@@ -50,7 +50,7 @@ Made for educational purposes. I hope it will help!
 * average runtime for all tests on a single thread is `12` minutes; optimal no. of threads is `5`,
 * `length` attribute in results includes only HTTP response body length,
 * cross-site tracing (XST) is `no more` considered to be a vulnerability,
-* both cURL and Python Request `no longer support double headers` and there is no known bug to exploit it.
+* both cURL and Python Requests `no longer support double headers` and there is no known bug to exploit it.
 
 **High priority plans:**
 
