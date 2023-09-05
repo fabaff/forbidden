@@ -35,7 +35,7 @@ Good sources of HTTP headers:
 
 * [Common HTTP Response Headers](https://webtechsurvey.com/common-response-headers)
 
-Tested on Kali Linux v2023.1 (64-bit).
+Tested on Kali Linux v2023.3 (64-bit).
 
 Made for educational purposes. I hope it will help!
 
@@ -104,7 +104,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-9.7-py3-none-any.whl
+python3 -m pip install dist/forbidden-9.8-py3-none-any.whl
 ```
 
 ## Automation
@@ -341,8 +341,8 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
          "Host: 127.0.0.1"
       ],
       "body":null,
-      "agent":"Forbidden/9.7",
-      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1' -H 'User-Agent: Forbidden/9.7' -X 'GET' 'https://example.com:443/admin'",
+      "agent":"Forbidden/9.8",
+      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1' -H 'User-Agent: Forbidden/9.8' -X 'GET' 'https://example.com:443/admin'",
       "code":200,
       "length":255408
    },
@@ -354,8 +354,8 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
          "Host: 127.0.0.1:443"
       ],
       "body":null,
-      "agent":"Forbidden/9.7",
-      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1:443' -H 'User-Agent: Forbidden/9.7' -X 'GET' 'https://example.com:443/admin'",
+      "agent":"Forbidden/9.8",
+      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1:443' -H 'User-Agent: Forbidden/9.8' -X 'GET' 'https://example.com:443/admin'",
       "code":200,
       "length":255408
    }
@@ -365,7 +365,7 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
 ## Usage
 
 ```fundamental
-Forbidden v9.7 ( github.com/ivan-sincek/forbidden )
+Forbidden v9.8 ( github.com/ivan-sincek/forbidden )
 
 Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]
 Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]
@@ -420,7 +420,7 @@ SLEEP
     -s <sleep> - 5 | etc.
 AGENT
     User agent to use
-    Default: Forbidden/9.7
+    Default: Forbidden/9.8
     -a <agent> - curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
@@ -434,7 +434,7 @@ DEBUG
 ```
 
 ```fundamental
-Stresser v9.7 ( github.com/ivan-sincek/forbidden )
+Stresser v9.8 ( github.com/ivan-sincek/forbidden )
 
 Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
 Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
@@ -469,7 +469,7 @@ LENGTHS
     -l <lengths> - 12 | base | etc.
 AGENT
     User agent to use
-    Default: Stresser/9.7
+    Default: Stresser/9.8
     -a <agent> - curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use

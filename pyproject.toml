@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "forbidden"
-version = "9.7"
+version = "9.8"
 authors = [{ name = "Ivan Sincek" }]
 description = "Bypass 4xx HTTP response status codes and more. Based on PycURL."
 readme = "README.md"

@@ -14,6 +14,7 @@ import io
 import requests
 import time
 import pycurl
+import tempfile
 import termcolor
 import colorama
 import json
@@ -29,7 +30,7 @@ colorama.init(autoreset = True)
 def basic():
 	global proceed
 	proceed = False
-	print("Forbidden v9.7 ( github.com/ivan-sincek/forbidden )")
+	print("Forbidden v9.8 ( github.com/ivan-sincek/forbidden )")
 	print("")
 	print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]")
 	print("Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]")
@@ -87,7 +88,7 @@ def advanced():
 	print("    -s <sleep> - 5 | etc.")
 	print("AGENT")
 	print("    User agent to use")
-	print("    Default: Forbidden/9.7")
+	print("    Default: Forbidden/9.8")
 	print("    -a <agent> - curl/3.30.1 | random[-all] | etc.")
 	print("PROXY")
 	print("    Web proxy to use")
@@ -1084,7 +1085,7 @@ def send_request(record, sleep = None, debug = None):
 	session.max_redirects = 10
 	try:
 		request = requests.Request(record["method"], record["url"], headers = headers, data = record["body"])
-		prepared = request.prepare()
+		prepared = session.prepare_request(request)
 		prepared.url = record["url"]
 		response = session.send(prepared, proxies = proxies, timeout = (90, 180), verify = False, allow_redirects = True)
 		record["code"] = response.status_code
@@ -1104,6 +1105,7 @@ def send_curl(record, sleep = None, debug = None):
 	if sleep:
 		time.sleep(sleep)
 	encoding = "UTF-8"
+	cookiefile = tempfile.NamedTemporaryFile(mode = "r")
 	response = io.BytesIO()
 	curl = pycurl.Curl()
 	curl.setopt(pycurl.CONNECTTIMEOUT, 90)
@@ -1124,7 +1126,9 @@ def send_curl(record, sleep = None, debug = None):
 		curl.setopt(pycurl.PROXY, record["proxy"].encode(encoding))
 	curl.setopt(pycurl.CUSTOMREQUEST, record["method"])
 	curl.setopt(pycurl.URL, record["url"].encode(encoding))
-	curl.setopt(pycurl.WRITEDATA, response)
+	curl.setopt(pycurl.WRITEFUNCTION, response.write)
+	curl.setopt(pycurl.COOKIEFILE, cookiefile.name)
+	curl.setopt(pycurl.COOKIEJAR, cookiefile.name)
 	try:
 		curl.perform()
 		record["code"] = int(curl.getinfo(pycurl.RESPONSE_CODE))
@@ -1137,6 +1141,7 @@ def send_curl(record, sleep = None, debug = None):
 	finally:
 		response.close()
 		curl.close()
+		cookiefile.close()
 	return record
 
 def remove(array, keys):
@@ -1252,7 +1257,7 @@ def main():
 	if proceed:
 		print("##########################################################################")
 		print("#                                                                        #")
-		print("#                             Forbidden v9.7                             #")
+		print("#                             Forbidden v9.8                             #")
 		print("#                                  by Ivan Sincek                        #")
 		print("#                                                                        #")
 		print("# Bypass 4xx HTTP response status codes and more.                        #")
@@ -1268,7 +1273,7 @@ def main():
 		if not args["threads"]:
 			args["threads"] = 5
 		if not args["agent"]:
-			args["agent"] = "Forbidden/9.7"
+			args["agent"] = "Forbidden/9.8"
 		# --------------------
 		url = parse_url(args["url"])
 		ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}
