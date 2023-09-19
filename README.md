@@ -24,8 +24,8 @@ To manually filter out false positive results, for each unique HTTP response con
 | URL path bypasses. | paths |
 | URL transformations and encodings. | encodings |
 | Basic and bearer auth + w/ null session and malicious JWTs. | base |
-| Open redirect, OOB, and SSRF - HTTP request headers only. | redirects |
-| Broken URL parsers. | parsers |
+| Open redirects, OOB, and SSRF. | redirects |
+| Broken URL parsers, OOB, and SSRF. | parsers |
 
 ---
 
@@ -112,7 +112,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-9.8-py3-none-any.whl
+python3 -m pip install dist/forbidden-9.9-py3-none-any.whl
 ```
 
 ## Automation
@@ -137,13 +137,13 @@ Bypass `401 Unauthorized` HTTP response status code:
 count=0; for subdomain in $(cat subdomains_401.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; forbidden -u "${subdomain}" -t auths -f GET -l base -o "forbidden_401_results_${count}.json"; done
 ```
 
-Test open redirects and server-side request forgery (SSRF):
+Test open redirects, OOB, and SSRF:
 
 ```bash
 count=0; for subdomain in $(cat subdomains_live_long.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; forbidden -u "${subdomain}" -t redirects -f GET -l base -e xyz.interact.sh -o "forbidden_redirect_results_${count}.json"; done
 ```
 
-Test broken URL parsers:
+Test broken URL parsers, OOB, and SSRF:
 
 ```bash
 count=0; for subdomain in $(cat subdomains_live_long.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; forbidden -u "${subdomain}" -t parsers -f GET -l base -e xyz.interact.sh -o "forbidden_parser_results_${count}.json"; done
@@ -356,8 +356,8 @@ Inject at the end of the URL path only if it does not end with forward slash.
             "Host: 127.0.0.1"
         ],
         "body": null,
-        "agent": "Forbidden/9.8",
-        "command": "curl --connect-timeout '60' -m '90' -iskL --max-redirs '10' --path-as-is -A 'Forbidden/9.8' -H 'Host: 127.0.0.1' -X 'GET' 'https://github.com:443/test'",
+        "agent": "Forbidden/9.9",
+        "command": "curl --connect-timeout '60' -m '90' -iskL --max-redirs '10' --path-as-is -A 'Forbidden/9.9' -H 'Host: 127.0.0.1' -X 'GET' 'https://github.com:443/test'",
         "code": 200,
         "length": 255408
     },
@@ -369,8 +369,8 @@ Inject at the end of the URL path only if it does not end with forward slash.
             "Host: 127.0.0.1:443"
         ],
         "body": null,
-        "agent": "Forbidden/9.8",
-        "command": "curl --connect-timeout '60' -m '90' -iskL --max-redirs '10' --path-as-is -A 'Forbidden/9.8' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://github.com:443/test'",
+        "agent": "Forbidden/9.9",
+        "command": "curl --connect-timeout '60' -m '90' -iskL --max-redirs '10' --path-as-is -A 'Forbidden/9.9' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://github.com:443/test'",
         "code": 200,
         "length": 255408
     }
@@ -380,7 +380,7 @@ Inject at the end of the URL path only if it does not end with forward slash.
 ## Usage
 
 ```fundamental
-Forbidden v9.8 ( github.com/ivan-sincek/forbidden )
+Forbidden v9.9 ( github.com/ivan-sincek/forbidden )
 
 Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]
 Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]
@@ -440,7 +440,7 @@ SLEEP
     -s <sleep> - 5 | etc.
 AGENT
     User agent to use
-    Default: Forbidden/9.8
+    Default: Forbidden/9.9
     -a <agent> - curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
@@ -454,7 +454,7 @@ DEBUG
 ```
 
 ```fundamental
-Stresser v9.8 ( github.com/ivan-sincek/forbidden )
+Stresser v9.9 ( github.com/ivan-sincek/forbidden )
 
 Usage:   stresser -u url                       -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
 Example: stresser -u https://example.com/admin -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
@@ -490,7 +490,7 @@ THREADS
     -th <threads> - 200 | etc.
 AGENT
     User agent to use
-    Default: Stresser/9.8
+    Default: Stresser/9.9
     -a <agent> - curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
@@ -509,6 +509,6 @@ DEBUG
 
 ## Images
 
-<p align="center"><img src="https://raw.githubusercontent.com/ivan-sincek/forbidden/main/img/basic_example.png" alt="Basic Example"></p>
+<p align="center"><img src="https://github.com/ivan-sincek/forbidden/blob/main/img/basic_example.png" alt="Basic Example"></p>
 
 <p align="center">Figure 1 - Basic Example</p>

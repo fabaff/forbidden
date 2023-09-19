@@ -143,7 +143,7 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
-default_user_agent = "Stresser/9.8"
+default_user_agent = "Stresser/9.9"
 
 # NOTE: Returns a user agents list (string array) on success.
 # NOTE: Returns the default user agent (string) on failure.
@@ -748,7 +748,7 @@ class Validate:
 
 	def __basic(self):
 		self.__proceed = False
-		print("Stresser v9.8 ( github.com/ivan-sincek/forbidden )")
+		print("Stresser v9.9 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   stresser -u url                       -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 		print("Example: stresser -u https://example.com/admin -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -983,7 +983,7 @@ def main():
 	if validate.run():
 		print("###########################################################################")
 		print("#                                                                         #")
-		print("#                              Stresser v9.8                              #")
+		print("#                              Stresser v9.9                              #")
 		print("#                                  by Ivan Sincek                         #")
 		print("#                                                                         #")
 		print("# Bypass 4xx HTTP response status codes  with stress testing.             #")

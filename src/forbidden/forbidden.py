@@ -272,7 +272,7 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
-default_user_agent = "Forbidden/9.8"
+default_user_agent = "Forbidden/9.9"
 
 # NOTE: Returns a user agents list (string array) on success.
 # NOTE: Returns the default user agent (string) on failure.
@@ -988,13 +988,13 @@ class Forbidden:
 			)
 		# --------------------------------
 		if self.__check_tests(["redirects", "all"]):
-			# NOTE: Test open redirects and server-side request forgery (SSRF).
+			# NOTE: Test open redirects, OOB, and SSRF.
 			self.__records(
 				identifier = "REDIRECTS-1",
 				urls       = self.__url["urls"]["base"],
 				headers    = self.__get_url_headers(self.__get_redirect_urls(scheme = True, ip = False))
 			)
-			# NOTE: Test open redirects and server-side request forgery (SSRF).
+			# NOTE: Test open redirects, OOB, and SSRF.
 			self.__records(
 				identifier = "REDIRECTS-2",
 				urls       = self.__url["urls"]["base"],
@@ -1002,13 +1002,13 @@ class Forbidden:
 			)
 		# --------------------------------
 		if self.__check_tests(["parsers", "all"]):
-			# NOTE: Test broken URL parsers and server-side request forgery (SSRF).
+			# NOTE: Test broken URL parsers, OOB, and SSRF.
 			self.__records(
 				identifier = "PARSERS-1",
 				urls       = self.__url["urls"]["base"],
 				headers    = self.__get_url_headers(self.__get_broken_urls(scheme = True, ip = False))
 			)
-			# NOTE: Test broken URL parsers and server-side request forgery (SSRF).
+			# NOTE: Test broken URL parsers, OOB, and SSRF.
 			self.__records(
 				identifier = "PARSERS-2",
 				urls       = self.__url["urls"]["base"],
@@ -1506,7 +1506,7 @@ class Validate:
 
 	def __basic(self):
 		self.__proceed = False
-		print("Forbidden v9.8 ( github.com/ivan-sincek/forbidden )")
+		print("Forbidden v9.9 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]")
 		print("Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]")
@@ -1816,7 +1816,7 @@ def main():
 	if validate.run():
 		print("##########################################################################")
 		print("#                                                                        #")
-		print("#                             Forbidden v9.8                             #")
+		print("#                             Forbidden v9.9                             #")
 		print("#                                  by Ivan Sincek                        #")
 		print("#                                                                        #")
 		print("# Bypass 4xx HTTP response status codes and more.                        #")
