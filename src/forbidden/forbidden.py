@@ -272,7 +272,7 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
-default_user_agent = "Forbidden/9.9"
+default_user_agent = "Forbidden/10.0"
 
 # NOTE: Returns a user agents list (string array) on success.
 # NOTE: Returns the default user agent (string) on failure.
@@ -1506,7 +1506,7 @@ class Validate:
 
 	def __basic(self):
 		self.__proceed = False
-		print("Forbidden v9.9 ( github.com/ivan-sincek/forbidden )")
+		print("Forbidden v10.0 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]")
 		print("Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]")
@@ -1814,16 +1814,16 @@ class Validate:
 def main():
 	validate = Validate()
 	if validate.run():
-		print("##########################################################################")
-		print("#                                                                        #")
-		print("#                             Forbidden v9.9                             #")
-		print("#                                  by Ivan Sincek                        #")
-		print("#                                                                        #")
-		print("# Bypass 4xx HTTP response status codes and more.                        #")
-		print("# GitHub repository at github.com/ivan-sincek/forbidden.                 #")
-		print("# Feel free to donate ETH at 0xbc00e800f29524AD8b0968CEBEAD4cD5C5c1f105. #")
-		print("#                                                                        #")
-		print("##########################################################################")
+		print("###########################################################################")
+		print("#                                                                         #")
+		print("#                             Forbidden v10.0                             #")
+		print("#                                  by Ivan Sincek                         #")
+		print("#                                                                         #")
+		print("# Bypass 4xx HTTP response status codes and more.                         #")
+		print("# GitHub repository at github.com/ivan-sincek/forbidden.                  #")
+		print("# Feel free to donate ETH at 0xbc00e800f29524AD8b0968CEBEAD4cD5C5c1f105.  #")
+		print("#                                                                         #")
+		print("###########################################################################")
 		out = validate.get_arg("out")
 		forbidden = Forbidden(
 			validate.get_arg("url"),

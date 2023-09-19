@@ -8,12 +8,12 @@ Results will be sorted by HTTP response status code ascending, HTTP response con
 
 To manually filter out false positive results, for each unique HTTP response content length, run the provided `cURL` command and check if the HTTP response results in bypass; if not, simply ignore all the results with the same HTTP response content length.
 
-| Description | Test |
+| Test Description | Test |
 | --- | --- |
 | HTTP and HTTPS requests on both, domain name and IP. | base |
 | HTTP methods + w/ `Content-Length: 0` HTTP request header. | methods |
 | Cross-site tracing (XST) w/ HTTP TRACE and TRACK methods. | methods |
-| \[Text\] file upload w/ HTTP PUT method. | methods |
+| \[Text\] file upload w/ HTTP PUT method on all URL directories. | methods |
 | HTTP method overrides w/ HTTP request headers and URL query string params. | method-overrides |
 | URL scheme overrides. | scheme-overrides |
 | Port overrides. | port-overrides |
@@ -47,7 +47,7 @@ Made for educational purposes. I hope it will help!
 
 ---
 
-**Python Requests seems to be up to three times faster compared to PycURL, but PycURL is way more customizable.**
+**Python Requests seems to be up to three times faster than PycURL, but PycURL is way more customizable.**
 
 **Remarks:**
 
@@ -112,7 +112,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-9.9-py3-none-any.whl
+python3 -m pip install dist/forbidden-10.0-py3-none-any.whl
 ```
 
 ## Automation
@@ -356,8 +356,8 @@ Inject at the end of the URL path only if it does not end with forward slash.
             "Host: 127.0.0.1"
         ],
         "body": null,
-        "agent": "Forbidden/9.9",
-        "command": "curl --connect-timeout '60' -m '90' -iskL --max-redirs '10' --path-as-is -A 'Forbidden/9.9' -H 'Host: 127.0.0.1' -X 'GET' 'https://github.com:443/test'",
+        "agent": "Forbidden/10.0",
+        "command": "curl --connect-timeout '60' -m '90' -iskL --max-redirs '10' --path-as-is -A 'Forbidden/10.0' -H 'Host: 127.0.0.1' -X 'GET' 'https://github.com:443/test'",
         "code": 200,
         "length": 255408
     },
@@ -369,8 +369,8 @@ Inject at the end of the URL path only if it does not end with forward slash.
             "Host: 127.0.0.1:443"
         ],
         "body": null,
-        "agent": "Forbidden/9.9",
-        "command": "curl --connect-timeout '60' -m '90' -iskL --max-redirs '10' --path-as-is -A 'Forbidden/9.9' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://github.com:443/test'",
+        "agent": "Forbidden/10.0",
+        "command": "curl --connect-timeout '60' -m '90' -iskL --max-redirs '10' --path-as-is -A 'Forbidden/10.0' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://github.com:443/test'",
         "code": 200,
         "length": 255408
     }
@@ -380,7 +380,7 @@ Inject at the end of the URL path only if it does not end with forward slash.
 ## Usage
 
 ```fundamental
-Forbidden v9.9 ( github.com/ivan-sincek/forbidden )
+Forbidden v10.0 ( github.com/ivan-sincek/forbidden )
 
 Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]
 Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]
@@ -440,7 +440,7 @@ SLEEP
     -s <sleep> - 5 | etc.
 AGENT
     User agent to use
-    Default: Forbidden/9.9
+    Default: Forbidden/10.0
     -a <agent> - curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
@@ -454,7 +454,7 @@ DEBUG
 ```
 
 ```fundamental
-Stresser v9.9 ( github.com/ivan-sincek/forbidden )
+Stresser v10.0 ( github.com/ivan-sincek/forbidden )
 
 Usage:   stresser -u url                       -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
 Example: stresser -u https://example.com/admin -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
@@ -490,7 +490,7 @@ THREADS
     -th <threads> - 200 | etc.
 AGENT
     User agent to use
-    Default: Stresser/9.9
+    Default: Stresser/10.0
     -a <agent> - curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
