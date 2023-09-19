@@ -79,7 +79,7 @@ Made for educational purposes. I hope it will help!
 * [How to Build and Install Manually](#how-to-build-and-install-manually)
 * [Automation](#automation)
 * [HTTP Methods](#http-methods)
-* [HTTP Request Headers](#http-headers)
+* [HTTP Request Headers](#http-request-headers)
 * [URL Paths](#url-paths)
 * [Results Format](#results-format)
 * [Usage](#usage)
