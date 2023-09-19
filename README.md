@@ -23,7 +23,7 @@ To manually filter out false positive results, for each unique HTTP response con
 | HTTP host override w/ double `Host` HTTP request headers. | headers |
 | URL path bypasses. | paths |
 | URL transformations and encodings. | encodings |
-| Basic and bearer auth + w/ null session and malicious JWTs. | base |
+| Basic and bearer auth + w/ null session and malicious JWTs. | auths |
 | Open redirects, OOB, and SSRF. | redirects |
 | Broken URL parsers, OOB, and SSRF. | parsers |
 
