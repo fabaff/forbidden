@@ -56,7 +56,7 @@ Made for educational purposes. I hope it will help!
 * connection timeout is set to `60` seconds, and read/response timeout is set to `90` seconds,
 * `length` attribute in results includes only HTTP response body length,
 * testing `double headers` is locked to `Python Requests` because cURL does not support it,
-* testing `encodings` is locked to `curl` because Python Requests does not support it,
+* testing `encodings` is locked to `cURL` because Python Requests does not support it,
 * some web proxies might normalize URLs (e.g. when testing `encodings`),
 * some web proxies might modify HTTP requests or drop them entirely,
 * some websites might require a valid or very specific `User-Agent` HTTP request header,
