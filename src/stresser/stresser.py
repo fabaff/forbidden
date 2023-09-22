@@ -143,7 +143,7 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
-default_user_agent = "Stresser/10.0"
+default_user_agent = "Stresser/10.1"
 
 # NOTE: Returns a user agents list (string array) on success.
 # NOTE: Returns the default user agent (string) on failure.
@@ -748,10 +748,10 @@ class Validate:
 
 	def __basic(self):
 		self.__proceed = False
-		print("Stresser v10.0 ( github.com/ivan-sincek/forbidden )")
+		print("Stresser v10.1 ( github.com/ivan-sincek/forbidden )")
 		print("")
-		print("Usage:   stresser -u url                       -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
-		print("Example: stresser -u https://example.com/admin -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
+		print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
+		print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
 
 	def __advanced(self):
 		self.__basic()
@@ -760,7 +760,7 @@ class Validate:
 		print("    Bypass 4xx HTTP response status codes with stress testing")
 		print("URL")
 		print("    Inaccessible URL")
-		print("    -u <url> - https://example.com/admin | etc.")
+		print("    -u <url> - https://example.com/secret | etc.")
 		print("IGNORE QSF")
 		print("    Ignore URL query string and fragment")
 		print("    -iqsf <ignore-qsf> - yes")
@@ -983,7 +983,7 @@ def main():
 	if validate.run():
 		print("##########################################################################")
 		print("#                                                                        #")
-		print("#                             Stresser v10.0                             #")
+		print("#                             Stresser v10.1                             #")
 		print("#                                 by Ivan Sincek                         #")
 		print("#                                                                        #")
 		print("# Bypass 4xx HTTP response status codes  with stress testing.            #")

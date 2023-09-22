@@ -272,7 +272,7 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
-default_user_agent = "Forbidden/10.0"
+default_user_agent = "Forbidden/10.1"
 
 # NOTE: Returns a user agents list (string array) on success.
 # NOTE: Returns the default user agent (string) on failure.
@@ -1506,7 +1506,7 @@ class Validate:
 
 	def __basic(self):
 		self.__proceed = False
-		print("Forbidden v10.0 ( github.com/ivan-sincek/forbidden )")
+		print("Forbidden v10.1 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]")
 		print("Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]")
@@ -1816,7 +1816,7 @@ def main():
 	if validate.run():
 		print("###########################################################################")
 		print("#                                                                         #")
-		print("#                             Forbidden v10.0                             #")
+		print("#                             Forbidden v10.1                             #")
 		print("#                                  by Ivan Sincek                         #")
 		print("#                                                                         #")
 		print("# Bypass 4xx HTTP response status codes and more.                         #")

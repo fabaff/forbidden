@@ -55,7 +55,7 @@ Made for educational purposes. I hope it will help!
 * beware of `rate limiting` and other similar anti-bot protections, take some time before you run the script again on the same domain,
 * connection timeout is set to `60` seconds, and read/response timeout is set to `90` seconds,
 * `length` attribute in results includes only HTTP response body length,
-* testing `double headers` is locked to Python Requests because `cURL` does not support it,
+* testing `double headers` is locked to `Python Requests` because cURL does not support it,
 * testing `encodings` is locked to `curl` because Python Requests does not support it,
 * some web proxies might normalize URLs (e.g. when testing `encodings`),
 * some web proxies might modify HTTP requests or drop them entirely,
@@ -65,7 +65,7 @@ Made for educational purposes. I hope it will help!
 **High priority plans:**
 
 * use brute forcing to find allowed HTTP methods if HTTP OPTIONS method is not allowed,
-* test HTTP cookies, `User-Agent` HTTP request header, CRLF, Log4j,
+* test HTTP cookies, `User-Agent` HTTP request header, CRLF, and Log4j,
 * add more path bypasses.
 
 **Low priority plans:**
@@ -79,7 +79,7 @@ Made for educational purposes. I hope it will help!
 * [How to Build and Install Manually](#how-to-build-and-install-manually)
 * [Automation](#automation)
 * [HTTP Methods](#http-methods)
-* [HTTP Request Headers](#http-headers)
+* [HTTP Request Headers](#http-request-headers)
 * [URL Paths](#url-paths)
 * [Results Format](#results-format)
 * [Usage](#usage)
@@ -112,7 +112,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-10.0-py3-none-any.whl
+python3 -m pip install dist/forbidden-10.1-py3-none-any.whl
 ```
 
 ## Automation
@@ -356,8 +356,8 @@ Inject at the end of the URL path only if it does not end with forward slash.
             "Host: 127.0.0.1"
         ],
         "body": null,
-        "agent": "Forbidden/10.0",
-        "command": "curl --connect-timeout '60' -m '90' -iskL --max-redirs '10' --path-as-is -A 'Forbidden/10.0' -H 'Host: 127.0.0.1' -X 'GET' 'https://github.com:443/test'",
+        "agent": "Forbidden/10.1",
+        "command": "curl --connect-timeout '60' -m '90' -iskL --max-redirs '10' --path-as-is -A 'Forbidden/10.1' -H 'Host: 127.0.0.1' -X 'GET' 'https://github.com:443/test'",
         "code": 200,
         "length": 255408
     },
@@ -369,8 +369,8 @@ Inject at the end of the URL path only if it does not end with forward slash.
             "Host: 127.0.0.1:443"
         ],
         "body": null,
-        "agent": "Forbidden/10.0",
-        "command": "curl --connect-timeout '60' -m '90' -iskL --max-redirs '10' --path-as-is -A 'Forbidden/10.0' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://github.com:443/test'",
+        "agent": "Forbidden/10.1",
+        "command": "curl --connect-timeout '60' -m '90' -iskL --max-redirs '10' --path-as-is -A 'Forbidden/10.1' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://github.com:443/test'",
         "code": 200,
         "length": 255408
     }
@@ -380,7 +380,7 @@ Inject at the end of the URL path only if it does not end with forward slash.
 ## Usage
 
 ```fundamental
-Forbidden v10.0 ( github.com/ivan-sincek/forbidden )
+Forbidden v10.1 ( github.com/ivan-sincek/forbidden )
 
 Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]
 Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]
@@ -440,7 +440,7 @@ SLEEP
     -s <sleep> - 5 | etc.
 AGENT
     User agent to use
-    Default: Forbidden/10.0
+    Default: Forbidden/10.1
     -a <agent> - curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
@@ -454,16 +454,16 @@ DEBUG
 ```
 
 ```fundamental
-Stresser v10.0 ( github.com/ivan-sincek/forbidden )
+Stresser v10.1 ( github.com/ivan-sincek/forbidden )
 
-Usage:   stresser -u url                       -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
-Example: stresser -u https://example.com/admin -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
+Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
+Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
 
 DESCRIPTION
     Bypass 4xx HTTP response status codes with stress testing
 URL
     Inaccessible URL
-    -u <url> - https://example.com/admin | etc.
+    -u <url> - https://example.com/secret | etc.
 IGNORE QSF
     Ignore URL query string and fragment
     -iqsf <ignore-qsf> - yes
@@ -490,7 +490,7 @@ THREADS
     -th <threads> - 200 | etc.
 AGENT
     User agent to use
-    Default: Stresser/10.0
+    Default: Stresser/10.1
     -a <agent> - curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
