@@ -272,7 +272,7 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
-default_user_agent = "Forbidden/10.1"
+default_user_agent = "Forbidden/10.2"
 
 # NOTE: Returns a user agents list (string array) on success.
 # NOTE: Returns the default user agent (string) on failure.
@@ -461,7 +461,7 @@ class Forbidden:
 		# --------------------------------
 		print_cyan(("Normalized inaccessible URL: {0}").format(self.__url["urls"]["base"]))
 		print_time("Validating the inaccessible URL...")
-		record = self.__fetch(url = self.__url["urls"]["base"], method = "GET")
+		record = self.__fetch(url = self.__url["urls"]["base"], method = self.__force if self.__force else self.__default_method)
 		if not (record["code"] > 0):
 			self.__print_error("Cannot validate the inaccessible URL, script will exit shortly...")
 		elif "base" in self.__lengths:
@@ -472,7 +472,7 @@ class Forbidden:
 		if not self.__error and self.__check_tests(["headers", "auths", "redirects", "parsers", "all"]):
 			print_cyan(("Normalized evil URL: {0}").format(self.__evil["urls"]["base"]))
 			print_time("Validating the evil URL...")
-			record = self.__fetch(url = self.__evil["urls"]["base"], method = "GET")
+			record = self.__fetch(url = self.__evil["urls"]["base"], method = self.__default_method)
 			if not (record["code"] > 0):
 				self.__print_error("Cannot validate the evil URL, script will exit shortly...")
 		# --------------------------------
@@ -497,7 +497,7 @@ class Forbidden:
 			print_time("Validating the accessible URLs...")
 			for url in copy.deepcopy(self.__accessible):
 				self.__accessible = ""
-				record = self.__fetch(url = url, method = "GET")
+				record = self.__fetch(url = url, method = self.__default_method)
 				if record["code"] >= 200 and record["code"] < 400:
 					print_green(("First valid accessible URL: {0}").format(record["url"]))
 					self.__accessible = record["url"]
@@ -595,7 +595,7 @@ class Forbidden:
 		return record
 
 	def __build_command(self, record):
-		tmp = ["curl", set_param(self.__connect_timeout, "--connect-timeout"), set_param(self.__read_timeout, "-m"), "-iskL", set_param(self.__max_redirects, "--max-redirs"), "--path-as-is"]
+		tmp = ["curl", ("--connect-timeout {0}").format(self.__connect_timeout), ("-m {0}").format(self.__read_timeout), "-iskL", ("--max-redirs {0}").format(self.__max_redirects), "--path-as-is"]
 		if record["body"]:
 			tmp.append(set_param(record["body"], "-d"))
 		if record["proxy"]:
@@ -1506,7 +1506,7 @@ class Validate:
 
 	def __basic(self):
 		self.__proceed = False
-		print("Forbidden v10.1 ( github.com/ivan-sincek/forbidden )")
+		print("Forbidden v10.2 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]")
 		print("Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]")
@@ -1816,7 +1816,7 @@ def main():
 	if validate.run():
 		print("###########################################################################")
 		print("#                                                                         #")
-		print("#                             Forbidden v10.1                             #")
+		print("#                             Forbidden v10.2                             #")
 		print("#                                  by Ivan Sincek                         #")
 		print("#                                                                         #")
 		print("# Bypass 4xx HTTP response status codes and more.                         #")

@@ -6,7 +6,7 @@ Script uses multithreading and is based on brute forcing, and as such, might hav
 
 Results will be sorted by HTTP response status code ascending, HTTP response content length descending, and ID ascending.
 
-To manually filter out false positive results, for each unique HTTP response content length, run the provided `cURL` command and check if the HTTP response results in bypass; if not, simply ignore all the results with the same HTTP response content length.
+To manually filter out false positive results, for each unique HTTP response content length, run the provided cURL command and check if the HTTP response results in bypass; if not, simply ignore all the results with the same HTTP response content length.
 
 | Test Description | Test |
 | --- | --- |
@@ -51,7 +51,7 @@ Made for educational purposes. I hope it will help!
 
 **Remarks:**
 
-* average time to process around `6000` requests on `5` threads is around `7` minutes,
+* average time to process around `6000` requests on `5` threads with PycURL is around `7` minutes,
 * beware of `rate limiting` and other similar anti-bot protections, take some time before you run the script again on the same domain,
 * connection timeout is set to `60` seconds, and read/response timeout is set to `90` seconds,
 * `length` attribute in results includes only HTTP response body length,
@@ -112,7 +112,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-10.1-py3-none-any.whl
+python3 -m pip install dist/forbidden-10.2-py3-none-any.whl
 ```
 
 ## Automation
@@ -350,27 +350,27 @@ Inject at the end of the URL path only if it does not end with forward slash.
 [
     {
         "id": "860-HEADERS-3",
-        "url": "https://github.com:443/test",
+        "url": "https://example.com:443/admin",
         "method": "GET",
         "headers": [
             "Host: 127.0.0.1"
         ],
         "body": null,
-        "agent": "Forbidden/10.1",
-        "command": "curl --connect-timeout '60' -m '90' -iskL --max-redirs '10' --path-as-is -A 'Forbidden/10.1' -H 'Host: 127.0.0.1' -X 'GET' 'https://github.com:443/test'",
+        "agent": "Forbidden/10.2",
+        "command": "curl --connect-timeout 60 -m 90 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/10.2' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
         "code": 200,
         "length": 255408
     },
     {
         "id": "861-HEADERS-3",
-        "url": "https://github.com:443/test",
+        "url": "https://example.com:443/admin",
         "method": "GET",
         "headers": [
             "Host: 127.0.0.1:443"
         ],
         "body": null,
-        "agent": "Forbidden/10.1",
-        "command": "curl --connect-timeout '60' -m '90' -iskL --max-redirs '10' --path-as-is -A 'Forbidden/10.1' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://github.com:443/test'",
+        "agent": "Forbidden/10.2",
+        "command": "curl --connect-timeout 60 -m 90 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/10.2' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
         "code": 200,
         "length": 255408
     }
@@ -380,7 +380,7 @@ Inject at the end of the URL path only if it does not end with forward slash.
 ## Usage
 
 ```fundamental
-Forbidden v10.1 ( github.com/ivan-sincek/forbidden )
+Forbidden v10.2 ( github.com/ivan-sincek/forbidden )
 
 Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]
 Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]
@@ -440,7 +440,7 @@ SLEEP
     -s <sleep> - 5 | etc.
 AGENT
     User agent to use
-    Default: Forbidden/10.1
+    Default: Forbidden/10.2
     -a <agent> - curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
@@ -454,7 +454,7 @@ DEBUG
 ```
 
 ```fundamental
-Stresser v10.1 ( github.com/ivan-sincek/forbidden )
+Stresser v10.2 ( github.com/ivan-sincek/forbidden )
 
 Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
 Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
@@ -490,7 +490,7 @@ THREADS
     -th <threads> - 200 | etc.
 AGENT
     User agent to use
-    Default: Stresser/10.1
+    Default: Stresser/10.2
     -a <agent> - curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use

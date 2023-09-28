@@ -143,7 +143,7 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
-default_user_agent = "Stresser/10.1"
+default_user_agent = "Stresser/10.2"
 
 # NOTE: Returns a user agents list (string array) on success.
 # NOTE: Returns the default user agent (string) on failure.
@@ -328,7 +328,7 @@ class Stresser:
 		# --------------------------------
 		print_cyan(("Normalized inaccessible URL: {0}").format(self.__url["urls"]["base"]))
 		print_time("Validating the inaccessible URL...")
-		record = self.__fetch(url = self.__url["urls"]["base"], method = "GET")
+		record = self.__fetch(url = self.__url["urls"]["base"], method = self.__force if self.__force else self.__default_method)
 		if not (record["code"] > 0):
 			self.__print_error("Cannot validate the inaccessible URL, script will exit shortly...")
 		elif "base" in self.__lengths:
@@ -434,7 +434,7 @@ class Stresser:
 		return record
 
 	def __build_command(self, record):
-		tmp = ["curl", set_param(self.__connect_timeout, "--connect-timeout"), set_param(self.__read_timeout, "-m"), "-iskL", set_param(self.__max_redirects, "--max-redirs"), "--path-as-is"]
+		tmp = ["curl", ("--connect-timeout {0}").format(self.__connect_timeout), ("-m {0}").format(self.__read_timeout), "-iskL", ("--max-redirs {0}").format(self.__max_redirects), "--path-as-is"]
 		if record["body"]:
 			tmp.append(set_param(record["body"], "-d"))
 		if record["proxy"]:
@@ -748,7 +748,7 @@ class Validate:
 
 	def __basic(self):
 		self.__proceed = False
-		print("Stresser v10.1 ( github.com/ivan-sincek/forbidden )")
+		print("Stresser v10.2 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 		print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -983,7 +983,7 @@ def main():
 	if validate.run():
 		print("##########################################################################")
 		print("#                                                                        #")
-		print("#                             Stresser v10.1                             #")
+		print("#                             Stresser v10.2                             #")
 		print("#                                 by Ivan Sincek                         #")
 		print("#                                                                        #")
 		print("# Bypass 4xx HTTP response status codes  with stress testing.            #")
