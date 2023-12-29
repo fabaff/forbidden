@@ -155,7 +155,7 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
-default_user_agent = "Stresser/10.4"
+default_user_agent = "Stresser/10.5"
 
 def get_all_user_agents():
 	tmp = []
@@ -731,7 +731,7 @@ class Progress:
 class MyArgParser(argparse.ArgumentParser):
 	
 	def print_help(self):
-		print("Stresser v10.4 ( github.com/ivan-sincek/forbidden )")
+		print("Stresser v10.5 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 		print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -802,12 +802,12 @@ class Validate:
 		self.__parser.add_argument("-f"   , "--force"                           , required = False, type   = str.upper   , default = ""   )
 		self.__parser.add_argument("-i"   , "--ignore"                          , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-l"   , "--content-lengths"                 , required = False, type   = str.lower   , default = ""   )
-		self.__parser.add_argument("-r"   , "--repeat"                          , required = False, type   = str         , default = ""   )
-		self.__parser.add_argument("-th"  , "--threads"                         , required = False, type   = str         , default = ""   )
+		self.__parser.add_argument("-r"   , "--repeat"                          , required = True , type   = str         , default = ""   )
+		self.__parser.add_argument("-th"  , "--threads"                         , required = True , type   = str         , default = ""   )
 		self.__parser.add_argument("-a"   , "--user-agent"                      , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-x"   , "--proxy"                           , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-o"   , "--out"                             , required = False, type   = str         , default = ""   )
-		self.__parser.add_argument("-dir" , "--directory"                       , required = False, type   = str         , default = ""   )
+		self.__parser.add_argument("-dir" , "--directory"                       , required = True , type   = str         , default = ""   )
 		self.__parser.add_argument("-dbg" , "--debug"                           , required = False, action = "store_true", default = False)
 
 	def run(self):
@@ -926,7 +926,7 @@ def main():
 	if validate.run():
 		print("##########################################################################")
 		print("#                                                                        #")
-		print("#                             Stresser v10.4                             #")
+		print("#                             Stresser v10.5                             #")
 		print("#                                 by Ivan Sincek                         #")
 		print("#                                                                        #")
 		print("# Bypass 4xx HTTP response status codes  with stress testing.            #")

@@ -274,7 +274,6 @@ def read_file(file):
 			line = line.strip()
 			if line:
 				tmp.append(line)
-	stream.close()
 	return unique(tmp)
 
 def write_file(data, out):
@@ -289,7 +288,7 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
-default_user_agent = "Forbidden/10.4"
+default_user_agent = "Forbidden/10.5"
 
 def get_all_user_agents():
 	tmp = []
@@ -1490,7 +1489,7 @@ class Progress:
 class MyArgParser(argparse.ArgumentParser):
 	
 	def print_help(self):
-		print("Forbidden v10.4 ( github.com/ivan-sincek/forbidden )")
+		print("Forbidden v10.5 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]")
 		print("Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]")
@@ -1749,7 +1748,7 @@ def main():
 	if validate.run():
 		print("###########################################################################")
 		print("#                                                                         #")
-		print("#                             Forbidden v10.4                             #")
+		print("#                             Forbidden v10.5                             #")
 		print("#                                  by Ivan Sincek                         #")
 		print("#                                                                         #")
 		print("# Bypass 4xx HTTP response status codes and more.                         #")
