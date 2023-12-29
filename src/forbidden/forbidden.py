@@ -300,9 +300,7 @@ def get_all_user_agents():
 				line = line.strip()
 				if line:
 					tmp.append(line)
-	if not tmp:
-		tmp.append(default_user_agent)
-	return unique(tmp)
+	return tmp if tmp else [default_agent]
 
 def get_random_user_agent():
 	tmp = get_all_user_agents()
