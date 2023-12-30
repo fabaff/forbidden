@@ -1668,8 +1668,7 @@ class Validate:
 				self.__error("Supported tests are 'base', 'methods', '[method|scheme|port]-overrides', 'headers', 'paths', 'encodings', 'auths', 'redirects', 'parsers', or 'all'")
 				break
 			elif entry == "all":
-				tmp.clear()
-				tmp.append(entry)
+				tmp = [entry]
 				break
 			else:
 				tmp.append(entry)
