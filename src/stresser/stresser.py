@@ -155,7 +155,7 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
-default_user_agent = "Stresser/10.5"
+default_user_agent = "Stresser/10.6"
 
 def get_all_user_agents():
 	tmp = []
@@ -176,7 +176,7 @@ def get_random_user_agent():
 
 class Stresser:
 
-	def __init__(self, url, ignore_qsf, ignore_curl, force, ignore, content_lengths, repeat, threads, user_agents, proxy, directory, debug):
+	def __init__(self, url, ignore_qsf, ignore_curl, force, ignore, content_lengths, request_timeout, repeat, threads, user_agents, proxy, directory, debug):
 		# --------------------------------
 		# NOTE: User-controlled input.
 		self.__url             = self.__parse_url(url, bool(ignore_qsf))
@@ -196,8 +196,8 @@ class Stresser:
 		self.__verify          = False # NOTE: Ignore SSL/TLS verification.
 		self.__allow_redirects = True
 		self.__max_redirects   = 10
-		self.__connect_timeout = 60
-		self.__read_timeout    = 90
+		self.__connect_timeout = request_timeout
+		self.__read_timeout    = request_timeout
 		self.__encoding        = "UTF-8" # NOTE: ISO-8859-1 works better than UTF-8 when accessing files.
 		self.__regex_flags     = re.MULTILINE | re.IGNORECASE
 		# --------------------------------
@@ -731,7 +731,7 @@ class Progress:
 class MyArgParser(argparse.ArgumentParser):
 	
 	def print_help(self):
-		print("Stresser v10.5 ( github.com/ivan-sincek/forbidden )")
+		print("Stresser v10.6 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 		print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -759,6 +759,10 @@ class MyArgParser(argparse.ArgumentParser):
 		print("    Specify 'base' to ignore content length of the base HTTP response")
 		print("    Use comma-separated values")
 		print("    -l, --content-lengths = 12 | base | etc.")
+		print("REQUEST TIMEOUT")
+		print("    Request timeout")
+		print("    Default: 60")
+		print("    -rt, --request-timeout = 30 | etc.")
 		print("REPEAT")
 		print("    Number of total HTTP requests to send for each test case")
 		print("    -r, --repeat = 1000 | etc.")
@@ -785,7 +789,7 @@ class MyArgParser(argparse.ArgumentParser):
 
 	def error(self, message):
 		if len(sys.argv) > 1:
-			print("Missing a mandatory option (-u, -dir, -r, -th) and/or optional (-iqsf, -ic, -f, -i, -l, -a, -x, -o, -dbg)")
+			print("Missing a mandatory option (-u, -dir, -r, -th) and/or optional (-iqsf, -ic, -f, -i, -l, -rt, -a, -x, -o, -dbg)")
 			print("Use -h or --help for more info")
 		else:
 			self.print_help()
@@ -802,6 +806,7 @@ class Validate:
 		self.__parser.add_argument("-f"   , "--force"                           , required = False, type   = str.upper   , default = ""   )
 		self.__parser.add_argument("-i"   , "--ignore"                          , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-l"   , "--content-lengths"                 , required = False, type   = str.lower   , default = ""   )
+		self.__parser.add_argument("-rt"  , "--request-timeout"                 , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-r"   , "--repeat"                          , required = True , type   = str         , default = ""   )
 		self.__parser.add_argument("-th"  , "--threads"                         , required = True , type   = str         , default = ""   )
 		self.__parser.add_argument("-a"   , "--user-agent"                      , required = False, type   = str         , default = ""   )
@@ -815,6 +820,7 @@ class Validate:
 		self.__args.url             = self.__parse_url(self.__args.url, "url")                  # required
 		self.__args.ignore          = self.__parse_ignore(self.__args.ignore)                   if self.__args.ignore          else ""
 		self.__args.content_lengths = self.__parse_content_lengths(self.__args.content_lengths) if self.__args.content_lengths else []
+		self.__args.request_timeout = self.__parse_request_timeout(self.__args.request_timeout) if self.__args.request_timeout else 60
 		self.__args.repeat          = self.__parse_repeat(self.__args.repeat)                   # required
 		self.__args.threads         = self.__parse_threads(self.__args.threads)                 # required
 		self.__args.user_agent      = self.__parse_user_agent(self.__args.user_agent)           if self.__args.user_agent      else [default_user_agent]
@@ -887,6 +893,15 @@ class Validate:
 				tmp.append(int(entry))
 		return unique(tmp)
 
+	def __parse_request_timeout(self, value):
+		if not value.isdigit():
+			self.__error("Request timeout must be numeric")
+		else:
+			value = int(value)
+			if value <= 0:
+				self.__error("Request timeout must be greater than zero")
+		return value
+
 	def __parse_repeat(self, value):
 		if not value.isdigit():
 			self.__error("Number of total HTTP requests to send must be numeric")
@@ -926,7 +941,7 @@ def main():
 	if validate.run():
 		print("##########################################################################")
 		print("#                                                                        #")
-		print("#                             Stresser v10.5                             #")
+		print("#                             Stresser v10.6                             #")
 		print("#                                 by Ivan Sincek                         #")
 		print("#                                                                        #")
 		print("# Bypass 4xx HTTP response status codes  with stress testing.            #")
@@ -942,6 +957,7 @@ def main():
 			validate.get_arg("force"),
 			validate.get_arg("ignore"),
 			validate.get_arg("content_lengths"),
+			validate.get_arg("request_timeout"),
 			validate.get_arg("repeat"),
 			validate.get_arg("threads"),
 			validate.get_arg("user_agent"),

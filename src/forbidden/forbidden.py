@@ -288,7 +288,7 @@ def write_file(data, out):
 		except FileNotFoundError:
 			print(("Cannot save results to '{0}'").format(out))
 
-default_user_agent = "Forbidden/10.5"
+default_user_agent = "Forbidden/10.6"
 
 def get_all_user_agents():
 	tmp = []
@@ -309,7 +309,7 @@ def get_random_user_agent():
 
 class Forbidden:
 
-	def __init__(self, url, ignore_qsf, ignore_curl, tests, force, values, paths, evil, ignore, content_lengths, threads, sleep, user_agents, proxy, debug):
+	def __init__(self, url, ignore_qsf, ignore_curl, tests, force, values, paths, evil, ignore, content_lengths, request_timeout, threads, sleep, user_agents, proxy, debug):
 		# --------------------------------
 		# NOTE: User-controlled input.
 		self.__url             = self.__parse_url(url, ignore_qsf)
@@ -332,8 +332,8 @@ class Forbidden:
 		self.__verify          = False # NOTE: Ignore SSL/TLS verification.
 		self.__allow_redirects = True
 		self.__max_redirects   = 10
-		self.__connect_timeout = 60
-		self.__read_timeout    = 90
+		self.__connect_timeout = request_timeout
+		self.__read_timeout    = request_timeout
 		self.__encoding        = "UTF-8" # NOTE: ISO-8859-1 works better than UTF-8 when accessing files.
 		self.__regex_flags     = re.MULTILINE | re.IGNORECASE
 		# --------------------------------
@@ -1489,7 +1489,7 @@ class Progress:
 class MyArgParser(argparse.ArgumentParser):
 	
 	def print_help(self):
-		print("Forbidden v10.5 ( github.com/ivan-sincek/forbidden )")
+		print("Forbidden v10.6 ( github.com/ivan-sincek/forbidden )")
 		print("")
 		print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]")
 		print("Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]")
@@ -1537,6 +1537,10 @@ class MyArgParser(argparse.ArgumentParser):
 		print("    Specify 'path' to ignore content length of the accessible URL response")
 		print("    Use comma-separated values")
 		print("    -l, --content-lengths = 12 | base | path | etc.")
+		print("REQUEST TIMEOUT")
+		print("    Request timeout")
+		print("    Default: 60")
+		print("    -rt, --request-timeout = 30 | etc.")
 		print("THREADS")
 		print("    Number of parallel threads to run")
 		print("    More threads make it run faster but also might return more false positive results")
@@ -1563,7 +1567,7 @@ class MyArgParser(argparse.ArgumentParser):
 
 	def error(self, message):
 		if len(sys.argv) > 1:
-			print("Missing a mandatory option (-u, -t) and/or optional (-iqsf, -ic, -f, -v, -p, -e, -i, -l, -th, -s, -a, -x, -o, -dbg)")
+			print("Missing a mandatory option (-u, -t) and/or optional (-iqsf, -ic, -f, -v, -p, -e, -i, -l, -rt, -th, -s, -a, -x, -o, -dbg)")
 			print("Use -h or --help for more info")
 		else:
 			self.print_help()
@@ -1584,6 +1588,7 @@ class Validate:
 		self.__parser.add_argument("-e"   , "--evil"                            , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-i"   , "--ignore"                          , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-l"   , "--content-lengths"                 , required = False, type   = str.lower   , default = ""   )
+		self.__parser.add_argument("-rt"  , "--request-timeout"                 , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-th"  , "--threads"                         , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-s"   , "--sleep"                           , required = False, type   = str         , default = ""   )
 		self.__parser.add_argument("-a"   , "--user-agent"                      , required = False, type   = str         , default = ""   )
@@ -1600,6 +1605,7 @@ class Validate:
 		self.__args.evil            = self.__parse_url(self.__args.evil, "evil")                if self.__args.evil            else "https://github.com"
 		self.__args.ignore          = self.__parse_ignore(self.__args.ignore)                   if self.__args.ignore          else ""
 		self.__args.content_lengths = self.__parse_content_lengths(self.__args.content_lengths) if self.__args.content_lengths else []
+		self.__args.request_timeout = self.__parse_request_timeout(self.__args.request_timeout) if self.__args.request_timeout else 60
 		self.__args.threads         = self.__parse_threads(self.__args.threads)                 if self.__args.threads         else 5
 		self.__args.sleep           = self.__parse_sleep(self.__args.sleep)                     if self.__args.sleep           else 0
 		self.__args.user_agent      = self.__parse_user_agent(self.__args.user_agent)           if self.__args.user_agent      else [default_user_agent]
@@ -1713,6 +1719,15 @@ class Validate:
 				tmp.append(int(entry))
 		return unique(tmp)
 
+	def __parse_request_timeout(self, value):
+		if not value.isdigit():
+			self.__error("Request timeout must be numeric")
+		else:
+			value = int(value)
+			if value <= 0:
+				self.__error("Request timeout must be greater than zero")
+		return value
+
 	def __parse_threads(self, value):
 		if not value.isdigit():
 			self.__error("Number of parallel threads to run must be numeric")
@@ -1747,7 +1762,7 @@ def main():
 	if validate.run():
 		print("###########################################################################")
 		print("#                                                                         #")
-		print("#                             Forbidden v10.5                             #")
+		print("#                             Forbidden v10.6                             #")
 		print("#                                  by Ivan Sincek                         #")
 		print("#                                                                         #")
 		print("# Bypass 4xx HTTP response status codes and more.                         #")
@@ -1767,6 +1782,7 @@ def main():
 			validate.get_arg("evil"),
 			validate.get_arg("ignore"),
 			validate.get_arg("content_lengths"),
+			validate.get_arg("request_timeout"),
 			validate.get_arg("threads"),
 			validate.get_arg("sleep"),
 			validate.get_arg("user_agent"),

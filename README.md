@@ -47,11 +47,9 @@ Made for educational purposes. I hope it will help!
 
 ---
 
-**Python Requests seems to be up to 3x faster than PycURL, but PycURL is way more customizable.**
-
 **Remarks:**
 
-* average time to process around `6000` requests on `5` threads with PycURL is around `7` minutes,
+* Python Requests seems to be up to 3x faster than PycURL, but PycURL more customizable,
 * beware of `rate limiting` and other similar anti-bot protections, take some time before you run the script again on the same domain,
 * connection timeout is set to `60` seconds, and read/response timeout is set to `90` seconds,
 * `length` attribute in results includes only HTTP response body length,
@@ -110,7 +108,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-10.5-py3-none-any.whl
+python3 -m pip install dist/forbidden-10.6-py3-none-any.whl
 ```
 
 ## Automation
@@ -354,8 +352,8 @@ Inject at the end of the URL path only if it does not end with forward slash.
             "Host: 127.0.0.1"
         ],
         "body": null,
-        "user_agent": "Forbidden/10.5",
-        "command": "curl --connect-timeout 60 -m 90 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/10.5' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
+        "user_agent": "Forbidden/10.6",
+        "command": "curl --connect-timeout 60 -m 90 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/10.6' -H 'Host: 127.0.0.1' -X 'GET' 'https://example.com:443/admin'",
         "code": 200,
         "length": 255408
     },
@@ -367,8 +365,8 @@ Inject at the end of the URL path only if it does not end with forward slash.
             "Host: 127.0.0.1:443"
         ],
         "body": null,
-        "user_agent": "Forbidden/10.5",
-        "command": "curl --connect-timeout 60 -m 90 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/10.5' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
+        "user_agent": "Forbidden/10.6",
+        "command": "curl --connect-timeout 60 -m 90 -iskL --max-redirs 10 --path-as-is -A 'Forbidden/10.6' -H 'Host: 127.0.0.1:443' -X 'GET' 'https://example.com:443/admin'",
         "code": 200,
         "length": 255408
     }
@@ -378,7 +376,7 @@ Inject at the end of the URL path only if it does not end with forward slash.
 ## Usage
 
 ```fundamental
-Forbidden v10.5 ( github.com/ivan-sincek/forbidden )
+Forbidden v10.6 ( github.com/ivan-sincek/forbidden )
 
 Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path ] [-o out         ]
 Example: forbidden -u https://example.com/admin -t all   [-f POST ] [-v values.txt] [-p /home] [-o results.json]
@@ -426,6 +424,10 @@ CONTENT LENGTHS
     Specify 'path' to ignore content length of the accessible URL response
     Use comma-separated values
     -l, --content-lengths = 12 | base | path | etc.
+REQUEST TIMEOUT
+    Request timeout
+    Default: 60
+    -rt, --request-timeout = 30 | etc.
 THREADS
     Number of parallel threads to run
     More threads make it run faster but also might return more false positive results
@@ -438,7 +440,7 @@ SLEEP
     -s, --sleep = 500 | etc.
 USER AGENT
     User agent to use
-    Default: Forbidden/10.5
+    Default: Forbidden/10.6
     -a, --user-agent = curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
@@ -452,7 +454,7 @@ DEBUG
 ```
 
 ```fundamental
-Stresser v10.5 ( github.com/ivan-sincek/forbidden )
+Stresser v10.6 ( github.com/ivan-sincek/forbidden )
 
 Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
 Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
@@ -480,6 +482,10 @@ CONTENT LENGTHS
     Specify 'base' to ignore content length of the base HTTP response
     Use comma-separated values
     -l, --content-lengths = 12 | base | etc.
+REQUEST TIMEOUT
+    Request timeout
+    Default: 60
+    -rt, --request-timeout = 30 | etc.
 REPEAT
     Number of total HTTP requests to send for each test case
     -r, --repeat = 1000 | etc.
@@ -488,7 +494,7 @@ THREADS
     -th, --threads = 20 | etc.
 USER AGENT
     User agent to use
-    Default: Stresser/10.5
+    Default: Stresser/10.6
     -a, --user-agent = curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
